@@ -1,17 +1,17 @@
 /*
- * File:   Corres.h
+ * File:   Correspondences.h
  * Author: Roland Glantz (roland.glantz@kit.edu)
  *
  */
 
-#ifndef CORRES_H
-#define	CORRES_H
+#ifndef CORRESPONDENCES_H
+#define	CORRESPONDENCES_H
 
 #include "../structures/Partition.h"
 
 namespace NetworKit {
 
-class Corres {
+class Correspondences {
     
 public:
     count numberOfElements;
@@ -189,5 +189,5 @@ public:
     double run(const Partition& partition1, const Partition& partition2);
 };
 } /* namespace NetworKit */
-#endif	/* CORRES_H */
+#endif	/* CORRESPONDENCES_H */
 

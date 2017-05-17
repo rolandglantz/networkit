@@ -1,5 +1,5 @@
 /*
- * Corres.cpp
+ * Correspondences.cpp
  *
  *  Created on September 20, 2016
  *  Author: Roland Glantz (roland.glantz@kit.edu)
@@ -16,7 +16,7 @@
 #include <fstream>
 #include <sstream>
 
-#include "Corres.h"
+#include "Correspondences.h"
 
 #define NR_CLUSTERS 32
 #define NR_CLUSTERS_HALF 16
@@ -43,7 +43,7 @@ namespace NetworKit {
 /**********************************************************************/
 /*                         createToyPartitions                        */
 /**********************************************************************/
-void Corres::createToyPartitions(Partition& partitionA, Partition& partitionB) {
+void Correspondences::createToyPartitions(Partition& partitionA, Partition& partitionB) {
     partitionA = Partition(31);
     partitionA.setUpperBound(6);
     partitionA.addToSubset(0, 0);
@@ -116,7 +116,7 @@ void Corres::createToyPartitions(Partition& partitionA, Partition& partitionB) {
 /**********************************************************************/
 /*                      createPairZeroPartitions                      */
 /**********************************************************************/
-void Corres::createPairZeroPartitions(Partition& partitionA, Partition& partitionB) {
+void Correspondences::createPairZeroPartitions(Partition& partitionA, Partition& partitionB) {
     //get seed for random partitions partitionA, partitionB
     unsigned seed = (unsigned) std::chrono::system_clock::now().time_since_epoch().count();
     
@@ -198,7 +198,7 @@ void Corres::createPairZeroPartitions(Partition& partitionA, Partition& partitio
 /**********************************************************************/
 /*                        kickOutIdenticalTwins                       */
 /**********************************************************************/
-void Corres::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA, const Partition& tmpNormalPartitionB,
+void Correspondences::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA, const Partition& tmpNormalPartitionB,
                                             Partition& normalPartitionA, Partition& normalPartitionB) {
     
     
@@ -290,7 +290,7 @@ void Corres::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA, const P
 /**********************************************************************/
 /*                         normalizeElements                          */
 /**********************************************************************/
-void Corres::normalizeElements(const Partition& partitionA, const Partition& partitionB,
+void Correspondences::normalizeElements(const Partition& partitionA, const Partition& partitionB,
                                         Partition& normalPartitionA, Partition& normalPartitionB,
                                         std::vector<index>& old2newElement) {
     
@@ -331,7 +331,7 @@ void Corres::normalizeElements(const Partition& partitionA, const Partition& par
 /**********************************************************************/
 /*                           getDistributions                         */
 /**********************************************************************/
-void Corres::getDistributions(Partition& partition1, Partition& partition2) {
+void Correspondences::getDistributions(Partition& partition1, Partition& partition2) {
     
     cardPartition1 = partition1.upperBound();
     cardPartition2 = partition2.upperBound();
@@ -385,7 +385,7 @@ void Corres::getDistributions(Partition& partition1, Partition& partition2) {
 /**********************************************************************/
 /*                         makeBipartiteGraph                         */
 /**********************************************************************/
-void Corres::makeBipartiteGraph(Partition& partition1, Partition& partition2) {
+void Correspondences::makeBipartiteGraph(Partition& partition1, Partition& partition2) {
     
     //for each cluster i1 in partition1 find the neighboring (intersecting) clusters in partition 2
     bipartForwardNeigh.resize(cardPartition1);
@@ -433,14 +433,14 @@ void Corres::makeBipartiteGraph(Partition& partition1, Partition& partition2) {
 /**********************************************************************/
 /*                                 peak                               */
 /**********************************************************************/
-count Corres::peak(count cardCluster2, count overlap) {
+count Correspondences::peak(count cardCluster2, count overlap) {
     return(std::min(overlap, cardCluster2 - overlap));
 }
 
 /**********************************************************************/
 /*                              getBoundPeak                          */
 /**********************************************************************/
-count Corres::getBoundPeak(void) {
+count Correspondences::getBoundPeak(void) {
     count ret = 0;
     for(count i2 = 0; i2 < distriB_s.size(); i2++) {
         ret+= std::min(distriB_s[i2], distriB_t[i2]);
@@ -456,7 +456,7 @@ count Corres::getBoundPeak(void) {
 /**********************************************************************/
 /*                            incrementS2                             */
 /**********************************************************************/
-count Corres::incrementS2(index newCluster) {
+count Correspondences::incrementS2(index newCluster) {
     count status = VALID;
     belongs[newCluster] = 1;
     index partner2 = (bipartForwardNeigh[newCluster])[0];
@@ -491,7 +491,7 @@ count Corres::incrementS2(index newCluster) {
 /**********************************************************************/
 /*                            incrementT2                             */
 /**********************************************************************/
-count Corres::incrementT2(index newCluster) {
+count Correspondences::incrementT2(index newCluster) {
     count status = VALID;
     belongs[newCluster] = 2;
     index partner2 = (bipartForwardNeigh[newCluster])[0];
@@ -525,7 +525,7 @@ count Corres::incrementT2(index newCluster) {
 /**********************************************************************/
 /*                            decrementS2                             */
 /**********************************************************************/
-void Corres::decrementS2(index oldCluster) {
+void Correspondences::decrementS2(index oldCluster) {
     belongs[oldCluster] = 0;
     index partner2 = (bipartForwardNeigh[oldCluster])[0];
     index counter2 = 0;
@@ -552,7 +552,7 @@ void Corres::decrementS2(index oldCluster) {
 /**********************************************************************/
 /*                             decrementT2                            */
 /**********************************************************************/
-void Corres::decrementT2(index oldCluster) {
+void Correspondences::decrementT2(index oldCluster) {
     belongs[oldCluster] = 0;
     index partner2 = (bipartForwardNeigh[oldCluster])[0];
     index counter2 = 0;
@@ -580,7 +580,7 @@ void Corres::decrementT2(index oldCluster) {
 /**********************************************************************/
 /*                            incrementS3                             */
 /**********************************************************************/
-count Corres::incrementS3(index newCluster) {
+count Correspondences::incrementS3(index newCluster) {
     belongs[newCluster] = 1;
     index partner2 = (bipartForwardNeigh[newCluster])[0];
     count counter2 = 0;
@@ -620,7 +620,7 @@ count Corres::incrementS3(index newCluster) {
 /**********************************************************************/
 /*                            incrementT3                             */
 /**********************************************************************/
-count Corres::incrementT3(index newCluster) {
+count Correspondences::incrementT3(index newCluster) {
     belongs[newCluster] = 2;
     index partner2 = (bipartForwardNeigh[newCluster])[0];
     index counter2 = 0;
@@ -659,7 +659,7 @@ count Corres::incrementT3(index newCluster) {
 /**********************************************************************/
 /*                            decrementS3                             */
 /**********************************************************************/
-void Corres::decrementS3(index oldCluster) {
+void Correspondences::decrementS3(index oldCluster) {
     belongs[oldCluster] = 0;
     index partner2 = (bipartForwardNeigh[oldCluster])[0];
     index counter2 = 0;
@@ -687,7 +687,7 @@ void Corres::decrementS3(index oldCluster) {
 /**********************************************************************/
 /*                             decrementT3                            */
 /**********************************************************************/
-void Corres::decrementT3(index oldCluster) {
+void Correspondences::decrementT3(index oldCluster) {
     belongs[oldCluster] = 0;
     index partner2 = (bipartForwardNeigh[oldCluster])[0];
     index counter2 = 0;
@@ -716,7 +716,7 @@ void Corres::decrementT3(index oldCluster) {
 /**********************************************************************/
 /*                            incrementS4                             */
 /**********************************************************************/
-count Corres::incrementS4(index newCluster) {
+count Correspondences::incrementS4(index newCluster) {
     belongs[newCluster] = 1;
     numberBelongs2s++;
     count status= 0;
@@ -777,7 +777,7 @@ count Corres::incrementS4(index newCluster) {
 /**********************************************************************/
 /*                            incrementT4                             */
 /**********************************************************************/
-count Corres::incrementT4(index newCluster) {
+count Correspondences::incrementT4(index newCluster) {
     belongs[newCluster] = 2;
     //std::cout << "Adding " << newCluster << " to " << "the t-side" << std::endl;
     numberBelongs2t++;
@@ -845,7 +845,7 @@ count Corres::incrementT4(index newCluster) {
 /**********************************************************************/
 /*                            decrementS4                             */
 /**********************************************************************/
-void Corres::decrementS4(index oldCluster) {
+void Correspondences::decrementS4(index oldCluster) {
     //std::cout << "This is decrementS4" << std::endl;
     belongs[oldCluster] = 0;
     numberBelongs2s--;
@@ -881,7 +881,7 @@ void Corres::decrementS4(index oldCluster) {
 /**********************************************************************/
 /*                             decrementT4                            */
 /**********************************************************************/
-void Corres::decrementT4(index oldCluster) {
+void Correspondences::decrementT4(index oldCluster) {
     //std::cout << "This is decrementT4" << std::endl;
     belongs[oldCluster] = 0;
     numberBelongs2t--;
@@ -916,7 +916,7 @@ void Corres::decrementT4(index oldCluster) {
 /**********************************************************************/
 /*                               potFracs                             */
 /**********************************************************************/
-count Corres::potFracs(count& sFracPotNew, count& tFracPotNew) {
+count Correspondences::potFracs(count& sFracPotNew, count& tFracPotNew) {
   //srand (time(NULL));  
   std::vector<count> sFracPot(cardPartition1);
   std::vector<count> tFracPot(cardPartition1);
@@ -976,7 +976,7 @@ count Corres::potFracs(count& sFracPotNew, count& tFracPotNew) {
 /**********************************************************************/
 /*                 resetBestBelongsMutual(bestBelongs                 */
 /**********************************************************************/
-void Corres::resetBestBelongsMutual(std::vector<int>& bestBelongs, bool sWon) {
+void Correspondences::resetBestBelongsMutual(std::vector<int>& bestBelongs, bool sWon) {
 
     if(sWon == true) {
         for(index i1 = 0; i1 < cardPartition1; i1++) {
@@ -1000,10 +1000,10 @@ void Corres::resetBestBelongsMutual(std::vector<int>& bestBelongs, bool sWon) {
 /**********************************************************************/
 /*                           greedyDescent3                           */
 /**********************************************************************/
-index Corres::greedyDescent3(index s, index t, count& bestFrac, count& currentFrac,
+index Correspondences::greedyDescent3(index s, index t, count& bestFrac, count& currentFrac,
                                      std::vector<index>& position2cluster, count& position,
                                      std::vector<int>& bestBelongs,
-                                     count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                     count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                      std::vector<bool>& doneWith) {
     count status = 0;
     count newCluster = cardPartition1;//no such cluster
@@ -1112,10 +1112,10 @@ index Corres::greedyDescent3(index s, index t, count& bestFrac, count& currentFr
 /**********************************************************************/
 /*                           greedyDescent4                           */
 /**********************************************************************/
-index Corres::greedyDescent4(index s, index t, count& bestFrac, count& currentFrac,
+index Correspondences::greedyDescent4(index s, index t, count& bestFrac, count& currentFrac,
                                      std::vector<index>& position2cluster, count& position,
                                      std::vector<int>& bestBelongs,
-                                     count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                     count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                      std::vector<bool>& doneWith) {
     //std::cout << "greedyDescent4: position is " << position + 1 << std::endl;
     count status = 0;
@@ -1183,14 +1183,14 @@ index Corres::greedyDescent4(index s, index t, count& bestFrac, count& currentFr
 /**********************************************************************/
 /*                             greedyBB                               */
 /**********************************************************************/
-count Corres::greedyBB(index s, index t, count bestFrac, count currentFrac,
+count Correspondences::greedyBB(index s, index t, count bestFrac, count currentFrac,
                                 std::vector<int>& bestBelongs,
-                                count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-                                void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-                                index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                                count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                                void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                                index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
                                                                        std::vector<index>& insertedAt, count& position,
                                                                        std::vector<int>& bestBelongs,
-                                                                       count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                                                       count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                                        std::vector<bool>& doneWith))
 {
     //std::cout << "greedyBB: bestFrac and current Frac are " << bestFrac << " and " << currentFrac << std::endl;
@@ -1332,7 +1332,7 @@ count Corres::greedyBB(index s, index t, count bestFrac, count currentFrac,
 /**********************************************************************/
 /*                    getQualityTrivialSolutions2                     */
 /**********************************************************************/
-count Corres::getQualityTrivialSolutions2(index s, index t, bool& tWins) {
+count Correspondences::getQualityTrivialSolutions2(index s, index t, bool& tWins) {
     count ret = getQualityTrivialSolutions4(s, t, tWins);
     if(cardinalityOfCluster1[s] < ret) {
         ret = cardinalityOfCluster1[s];
@@ -1348,7 +1348,7 @@ count Corres::getQualityTrivialSolutions2(index s, index t, bool& tWins) {
 /**********************************************************************/
 /*                    getQualityTrivialSolutions3                     */
 /**********************************************************************/
-count Corres::getQualityTrivialSolutions3(index s, index t, bool& tWins) {
+count Correspondences::getQualityTrivialSolutions3(index s, index t, bool& tWins) {
     count symDiff_s = numberOfElements;
     count neigh = (bipartForwardNeigh[s])[0];
     count counter = 0;
@@ -1387,7 +1387,7 @@ count Corres::getQualityTrivialSolutions3(index s, index t, bool& tWins) {
 /**********************************************************************/
 /*                    getQualityTrivialSolutions4                     */
 /**********************************************************************/
-count Corres::getQualityTrivialSolutions4(index s, index t, bool& tWins) {
+count Correspondences::getQualityTrivialSolutions4(index s, index t, bool& tWins) {
     
     count qualityTrivialSolutions = numberOfElements;
     count neigh = (bipartForwardNeigh[s])[0];
@@ -1428,14 +1428,14 @@ count Corres::getQualityTrivialSolutions4(index s, index t, bool& tWins) {
 /**********************************************************************/
 /*                              minCut4                               */
 /**********************************************************************/
-count Corres::minCut4(index s, index t, std::vector<int>& bestBelongs,
-                               count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-                               void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-                               count (Corres::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
-                               index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+count Correspondences::minCut4(index s, index t, std::vector<int>& bestBelongs,
+                               count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                               void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                               count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+                               index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
                                                                       std::vector<index>& insertedAt, count& position,
                                                                       std::vector<int>& bestBelongs,
-                                                                      count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                                                      count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                                       std::vector<bool>& doneWith))
 {
     //reset belongs, belongsPrime, distriB_s, distriB_t, distriB_sPrime, distriB_tPrime
@@ -1502,7 +1502,7 @@ count Corres::minCut4(index s, index t, std::vector<int>& bestBelongs,
 /**********************************************************************/
 /*                            bucketSort                              */
 /**********************************************************************/
-void Corres::bucketSort(count cMax,
+void Correspondences::bucketSort(count cMax,
                                  std::vector<count>& gomoryHuParent, std::vector<count>& cutWithGomoryHuParent,
                                  std::vector<count>& sortedGomoryHuParent, std::vector<count>& sortedCutWithGomoryHuParent) {
     
@@ -1527,24 +1527,24 @@ void Corres::bucketSort(count cMax,
 /*                              gusfield                              */
 /**********************************************************************/
 
-count Corres::gusfield(std::vector<index>& gomoryHuParent, std::vector<count>& cutWithGomoryHuParent,
+count Correspondences::gusfield(std::vector<index>& gomoryHuParent, std::vector<count>& cutWithGomoryHuParent,
                                 index& bestS, index& bestT, std::vector<int>& bestBestBelongs,
-                                count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-                                void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-                                count (Corres::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
-                                index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                                count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                                void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                                count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+                                index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
                                                                        std::vector<index>& insertedAt, count& position,
                                                                        std::vector<int>& bestBelongs,
-                                                                       count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                                                       count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                                        std::vector<bool>& doneWith),
-                                count (Corres::*minCut)(index s, index t, std::vector<int>& bestBelongs,
-                                                                 count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-                                                                 void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-                                                                 count (Corres::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
-                                                                 index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                                count (Correspondences::*minCut)(index s, index t, std::vector<int>& bestBelongs,
+                                                                 count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                                                                 void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                                                                 count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+                                                                 index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
                                                                                                         std::vector<index>& insertedAt, count& position,
                                                                                                         std::vector<int>& bestBelongs,
-                                                                                                        count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                                                                                        count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                                                                         std::vector<bool>& doneWith))) {
  
  //belongs[] expresses membership of a cluster $c$ from partition1 as follows.
@@ -1657,7 +1657,7 @@ return(totalCut);
 /**********************************************************************/
 /*                        getBestBelongsPrime                         */
 /**********************************************************************/
-void Corres::getBestBelongsPrime(std::vector<int>& bestBelongs,  std::vector<int>& bestBelongsPrime) {
+void Correspondences::getBestBelongsPrime(std::vector<int>& bestBelongs,  std::vector<int>& bestBelongsPrime) {
     for(index i2 = 0; i2 < cardPartition2; i2++) {
         count thresh = (cardinalityOfCluster2[i2]) / 2;
         count fit = 0;
@@ -1675,9 +1675,9 @@ void Corres::getBestBelongsPrime(std::vector<int>& bestBelongs,  std::vector<int
 }
 
 /**********************************************************************/
-/*                       evaluateCorrespondence                       */
+/*                      evaluateCorrespondence                        */
 /**********************************************************************/
-void Corres::evaluateCorrespondence(std::vector<int>& bestBelongs, std::vector<int>& bestBelongsPrime,
+void Correspondences::evaluateCorrespondence(std::vector<int>& bestBelongs, std::vector<int>& bestBelongsPrime,
                                              count& clusterCardinality, count& clusterCardinalityPrime,
                                              count& elementCardinality, count& elementCardinalityPrime,
                                              double symDiff, double& size, double& quality) {
@@ -1723,7 +1723,7 @@ void Corres::evaluateCorrespondence(std::vector<int>& bestBelongs, std::vector<i
 /**********************************************************************/
 /*                     evaluateAllCorrespondences                     */
 /**********************************************************************/
-double Corres::evaluateAllCorrespondences(std::vector<index>& gomoryHuParent,
+double Correspondences::evaluateAllCorrespondences(std::vector<index>& gomoryHuParent,
 					  std::vector<count>& cutWithGomoryHuParent) {
     
   //2D vector to store the number of clusters in partition1 vs number of clusters in partition2
@@ -1827,7 +1827,7 @@ double Corres::evaluateAllCorrespondences(std::vector<index>& gomoryHuParent,
 /**********************************************************************/
 /*                   readSegmentationNormalizeClusters                */
 /**********************************************************************/
-bool Corres::readSegmentationNormalizeClusters(std::string filename, Partition& partition,
+bool Correspondences::readSegmentationNormalizeClusters(std::string filename, Partition& partition,
                                                         std::map<index, index>& clusterID2segmentID) {
     
     // open file for reading
@@ -1894,7 +1894,7 @@ bool Corres::readSegmentationNormalizeClusters(std::string filename, Partition& 
   /**********************************************************************/
   /*                                run                                 */
   /**********************************************************************/
-  double Corres::run(const Partition& partitionA, const Partition& partitionB) {
+  double Correspondences::run(const Partition& partitionA, const Partition& partitionB) {
     int level = 3;
     //level == 1: cuts through bipartite graph, not yet implemented
     //level == 2: nontrivial (one-sided) correspondences
@@ -1906,54 +1906,54 @@ bool Corres::readSegmentationNormalizeClusters(std::string filename, Partition& 
       return(0);
     }
     //depending on level, choose the right functions for incrementing, decrementing S or T
-    count (Corres::*incrementS)(index newCluster) = &Corres::incrementS4;
-    count (Corres::*incrementT)(index newCluster) = &Corres::incrementT4;
-    void (Corres::*decrementS)(index newCluster) = &Corres::decrementS4;
-    void (Corres::*decrementT)(index newCluster) = &Corres::decrementT4;
-    count (Corres::*getQualityTrivialSolutions)(index s, index t, bool& tWins) = &Corres::getQualityTrivialSolutions4;
-    index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+    count (Correspondences::*incrementS)(index newCluster) = &Correspondences::incrementS4;
+    count (Correspondences::*incrementT)(index newCluster) = &Correspondences::incrementT4;
+    void (Correspondences::*decrementS)(index newCluster) = &Correspondences::decrementS4;
+    void (Correspondences::*decrementT)(index newCluster) = &Correspondences::decrementT4;
+    count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins) = &Correspondences::getQualityTrivialSolutions4;
+    index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
 				   std::vector<index>& insertedAt, count& position,
 				   std::vector<int>& bestBelongs,
-				   count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-				   std::vector<bool>& doneWith) = &Corres::greedyDescent4;
+				   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+				   std::vector<bool>& doneWith) = &Correspondences::greedyDescent4;
         
-    count (Corres::*minCut)(index s, index t, std::vector<int>& bestBelongs,
-			    count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-			    void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-			    count (Corres::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
-			    index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+    count (Correspondences::*minCut)(index s, index t, std::vector<int>& bestBelongs,
+			    count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+			    void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+			    count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+			    index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
 							   std::vector<index>& insertedAt, count& position,
 							   std::vector<int>& bestBelongs,
-							   count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-							   std::vector<bool>& doneWith)) = &Corres::minCut4;
+							   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+							   std::vector<bool>& doneWith)) = &Correspondences::minCut4;
     if(level == 2) {
-      incrementS = &Corres::incrementS2;
-      incrementT = &Corres::incrementT2;
-      decrementS = &Corres::decrementS2;
-      decrementT = &Corres::decrementT2;
-      getQualityTrivialSolutions = &Corres::getQualityTrivialSolutions2;
-      greedyDescent = &Corres::greedyDescent4;
-      minCut = &Corres::minCut4;
+      incrementS = &Correspondences::incrementS2;
+      incrementT = &Correspondences::incrementT2;
+      decrementS = &Correspondences::decrementS2;
+      decrementT = &Correspondences::decrementT2;
+      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions2;
+      greedyDescent = &Correspondences::greedyDescent4;
+      minCut = &Correspondences::minCut4;
     }
         
     if(level == 3) {
-      incrementS = &Corres::incrementS3;
-      incrementT = &Corres::incrementT3;
-      decrementS = &Corres::decrementS3;
-      decrementT = &Corres::decrementT3;
-      getQualityTrivialSolutions = &Corres::getQualityTrivialSolutions3;
-      greedyDescent = &Corres::greedyDescent3;
-      minCut = &Corres::minCut4;
+      incrementS = &Correspondences::incrementS3;
+      incrementT = &Correspondences::incrementT3;
+      decrementS = &Correspondences::decrementS3;
+      decrementT = &Correspondences::decrementT3;
+      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions3;
+      greedyDescent = &Correspondences::greedyDescent3;
+      minCut = &Correspondences::minCut4;
     }
         
     if(level == 4) {
-      incrementS = &Corres::incrementS4;
-      incrementT = &Corres::incrementT4;
-      decrementS = &Corres::decrementS4;
-      decrementT = &Corres::decrementT4;
-      getQualityTrivialSolutions = &Corres::getQualityTrivialSolutions4;
-      greedyDescent = &Corres::greedyDescent4;
-      minCut = &Corres::minCut4;
+      incrementS = &Correspondences::incrementS4;
+      incrementT = &Correspondences::incrementT4;
+      decrementS = &Correspondences::decrementS4;
+      decrementT = &Correspondences::decrementT4;
+      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions4;
+      greedyDescent = &Correspondences::greedyDescent4;
+      minCut = &Correspondences::minCut4;
     }
         
     index bestS, bestT;
