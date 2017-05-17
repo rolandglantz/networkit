@@ -69,6 +69,8 @@ from . import stats
 from . import sampling
 from . import viz
 from .profiling import profiling
+from . import correspondences                                                                          
+from . import corres
 
 try:
 	from . import viztasks
