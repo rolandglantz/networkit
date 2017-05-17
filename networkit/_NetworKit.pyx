@@ -3072,44 +3072,43 @@ cdef class PartitionWriter:
 
 
 cdef extern from "cpp/correspondences/Correspondences.h":
-        cdef cppclass _Correspondences "NetworKit::Correspondences":
-                _Correspondences() except +
-                void getDistributions(_Partition, _Partition) except +
-                long int run(_Partition, _Partition) except +                                          
+	cdef cppclass _Correspondences "NetworKit::Correspondences":
+		_Correspondences() except +
+		void getDistributions(_Partition, _Partition) except +
+		long int run(_Partition, _Partition) except +
 
 cdef class Correspondences:
-        """ Finds correspondences between two partitions
-         """
-        cdef _Correspondences* _this
+	""" Finds correspondences between two partitions
+	 """
+	cdef _Correspondences* _this
 
-        def __cinit__(self):
-                self._this = new _Correspondences()
+	def __cinit__(self):
+		self._this = new _Correspondences()
 
-        def getDistributions(self, Partition partition1, Partition
-        partition2):
-                self._this.getDistributions(partition1._this,
-        partition2._this)
-        def run(self, Partition partition1, Partition partition2):
-                return self._this.run(partition1._this, partition2._this)
+	def getDistributions(self, Partition partition1, Partition partition2):
+		self._this.getDistributions(partition1._this, partition2._this)
+	def run(self, Partition partition1, Partition partition2):
+		return self._this.run(partition1._this, partition2._this)
 
 
 
 cdef extern from "cpp/correspondences/Corres.h":
-        cdef cppclass _Corres "NetworKit::Corres":
-                _Corres() except +
-                double run(_Partition, _Partition) except +
+	cdef cppclass _Corres "NetworKit::Corres":
+		_Corres() except +
+		double run(_Partition, _Partition) except +
 
 cdef class Corres:
-        """ Finds correspondences between two partitions and provides details
-        on correspondences
-         """
-        cdef _Corres* _this
+	""" Finds correspondences between two partitions and provides details on correspondences
+	 """
+	cdef _Corres* _this
 
-        def __cinit__(self):
-                self._this = new _Corres()
+	def __cinit__(self):
+		self._this = new _Corres()
 
-        def run(self, Partition partition1, Partition partition2):
-                return self._this.run(partition1._this, partition2._this)
+	def run(self, Partition partition1, Partition partition2):
+		return self._this.run(partition1._this, partition2._this)
+
+
 
 
 

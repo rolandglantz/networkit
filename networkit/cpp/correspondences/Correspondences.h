@@ -91,22 +91,22 @@ public:
     index greedyDescent3(index s, index t, count& bestFrac, count& currentFrac,
                         std::vector<index>& position2cluster, count& position,
                         std::vector<int>& bestBelongs,
-                        count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                        count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                         std::vector<bool>& doneWith);
     
     index greedyDescent4(index s, index t, count& bestFrac, count& currentFrac,
                         std::vector<index>& insertedAt, count& position,
                         std::vector<int>& bestBelongs,
-                        count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                        count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                         std::vector<bool>& doneWith);
     
     count greedyBB(index s, index t, count bestFrac, count currentFrac, std::vector<int>& bestBelongs,
-                   count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-                   void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-                   index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                   void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                   index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
                                                           std::vector<index>& insertedAt, count& position,
                                                           std::vector<int>& bestBelongs,
-                                                          count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                                          count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                           std::vector<bool>& doneWith));
     
     void getBestBelongsPrime(std::vector<int>& bestBelongs,  std::vector<int>& bestBelongsPrime);
@@ -117,13 +117,13 @@ public:
                                 double symDiff, double& size, double& quality);
     
     count minCut4(index s, index t, std::vector<int>& bestBelongs,
-                  count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-                  void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-                  count (Corres::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
-                  index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                  count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                  void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                  count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+                  index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
                                                          std::vector<index>& insertedAt, count& position,
                                                          std::vector<int>& bestBelongs,
-                                                         count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                                         count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                          std::vector<bool>& doneWith));
         
     void bucketSort(count cMax,
@@ -150,22 +150,22 @@ public:
     
     count gusfield(std::vector<index>& gomoryHuParent, std::vector<count>& cutWithGomoryHuParent,
                    index& bestS, index& bestT, std::vector<int>& bestBestBelongs,
-                   count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-                   void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-                   count (Corres::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
-                   index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                   void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                   count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+                   index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
                                                           std::vector<index>& insertedAt, count& position,
                                                           std::vector<int>& bestBelongs,
-                                                          count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                                          count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                           std::vector<bool>& doneWith),
-                   count (Corres::*minCut)(index s, index t, std::vector<int>& bestBelongs,
-                                                    count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
-                                                    void (Corres::*decrementS)(index newCluster), void (Corres::*decrementT)(index newCluster),
-                                                    count (Corres::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
-                                                    index (Corres::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                   count (Correspondences::*minCut)(index s, index t, std::vector<int>& bestBelongs,
+                                                    count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                                                    void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                                                    count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+                                                    index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
                                                                                            std::vector<index>& insertedAt, count& position,
                                                                                            std::vector<int>& bestBelongs,
-                                                                                           count (Corres::*incrementS)(index newCluster), count (Corres::*incrementT)(index newCluster),
+                                                                                           count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                                                            std::vector<bool>& doneWith)));
     
     double evaluateAllCorrespondences(std::vector<index>& gomoryHuParent, std::vector<count>& cutWithGomoryHuParent);
