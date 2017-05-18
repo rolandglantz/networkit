@@ -19,6 +19,7 @@ networkit/coloring.py
 networkit/community.py
 networkit/components.py
 networkit/correlation.py
+networkit/corres.py
 networkit/correspondences.py
 networkit/cython_helper.h
 networkit/distance.py

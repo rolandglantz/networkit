@@ -1643,7 +1643,7 @@ count Corres::gusfield(std::vector<index>& gomoryHuParent, std::vector<count>& c
  //sort gomoryHuParent, cutWithGomoryHuParent
  //bucketSort(cMax, gomoryHuParent, cutWithGomoryHuParent, sortedGomoryHuParent, sortedCutWithGomoryHuParent);
   
-std::cout << "total cut has weight " << totalCut << std::endl;
+std::cout << "Total cut has weight " << totalCut << std::endl;
 return(totalCut);
 }
 
