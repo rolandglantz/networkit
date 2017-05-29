@@ -52,3 +52,4 @@ EnsembleClustering-O
 doxygen
 NetworKit-Tests-*
 include/NetworKit
+networkit.egg-info
