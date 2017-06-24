@@ -243,6 +243,10 @@ Partition DynamicCommunitiesGenerator::next() {
 	if (!this->preGenerated)
 		this->preGenerate();
 
+	#ifdef DYNAMICCOMMUNITIESGENERATOR_VALIDATE
+	(GeneratorValidator(*this)).validateClusterNum();
+	#endif
+
 	this->performMerge();
 	this->performSplit();
 	this->performIndividualMoves();
@@ -705,7 +709,7 @@ void GeneratorValidator::validate0Cluster() {
 
 void GeneratorValidator::validateClusterNum() {
 	if (this->state.getPreGenerated())
-		Aux::enforce(this->state.getClusters().size() == this->state.getParameters().l,
+		Aux::enforce(this->state.getClusters().size() - 1 == this->state.getParameters().l,
 			"clusters has size != l after pre-generation");
 }
 

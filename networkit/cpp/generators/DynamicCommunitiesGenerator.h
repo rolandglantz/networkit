@@ -296,6 +296,7 @@ public:
 	 */
 	void validate() {
 		this->validate0Cluster();
+
 		this->validateSubclustersLength();
 		this->validateSubclusterCluster();
 		this->validateSubclusterParent();
@@ -318,6 +319,8 @@ public:
 		this->validatePartialTreesParents(partialTrees, forest);
 		this->validateOrder(forest, partialTrees);
 	}
+
+	void validateClusterNum();
 
 protected:
 	GeneratorState state;
@@ -353,7 +356,6 @@ protected:
 	};
 
 	void validate0Cluster();
-	void validateClusterNum();
 
 	void validateSubclustersLength();
 	void validateSubclusterCluster();
