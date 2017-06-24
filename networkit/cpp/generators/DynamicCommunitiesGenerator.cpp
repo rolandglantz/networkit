@@ -532,7 +532,6 @@ void DynamicCommunitiesGenerator::makeClusterRoot(index i) {
 std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees(index i) {
 	// List of trees, return value
 	std::vector<std::vector<index>> partialTrees;
-	// +INFO INFOF("extractPartialTrees(%s)", i);
 
 	// Current state
 	//  postOrderBound is an upper, outer bound for encountered postOrder values.
@@ -559,14 +558,10 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 		rootStack.push_back(z);
 		z = this->subclusters[z].parent;
 	}
-	// +INFO infoCluster(cluster, this->subclusters, "  cluster = ");
-	// +INFO infoVector(rootStack, "  roots = ");
 
 	for (auto it = cluster.cbegin(); it != cluster.cend(); ++it) {
-		// +INFO INFOF("  → %s postOrder[.] = %s, preOrder[.] = %s", *it, this->subclusters[*it].postOrder, it - cluster.cbegin());
 		if (!rootStack.empty() && *it == rootStack.back()) {
 			// Encountered root node.
-			// +INFO INFO("  + Encountered root node.");
 
 			// Only if there are elements in the partialTree, i.e. don't push the empty partialTree
 			//  when encountering the cluster root in the first iteration
@@ -588,12 +583,10 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 			//  partial tree.
 			partialTree.push_back(*it);
 			postOrderDelta = postOrderBound;
-			// +INFO INFOF("    Setting postOrderDelta = %s", postOrderBound);
 		} else if (this->subclusters[*it].postOrder > this->subclusters[partialTree.front()].postOrder) {
 			// Reached end of current partial tree.
 
 			while (this->subclusters[*it].postOrder > this->subclusters[partialTree.front()].postOrder) {
-				// +INFO INFO("  + Reached end of current partial tree.");
 
 				// Amend the postOrder of the partial tree's root node.
 				//  Simply set to the tree size - 1 , i.e. last post order occuring in the tree instead
@@ -607,7 +600,6 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 
 				// Commit partial tree
 				// TODO move instead of copy
-				// +INFO infoVector(partialTree, "    Commiting partialTree ");
 				partialTrees.push_back(partialTree);
 
 				// Restore partialTree
@@ -617,41 +609,33 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 			}
 
 			// Process encountered node.
-			// +INFO INFOF("    Adding to partialTree under %s", partialTree.front());
 			partialTree.push_back(*it);
 			// Note: The post order of the encountered node will be greater, as the last processed
 			//  subtree was on the same level but with a lower pre order (post order completeness
 			//  of subtrees).
 			postOrderBound = this->subclusters[*it].postOrder + 1;
-			// +INFO INFOF("    Decreasing postOrder from %s to %s", this->subclusters[*it].postOrder, this->subclusters[*it].postOrder - postOrderDelta);
 			this->subclusters[*it].postOrder -= postOrderDelta;
 		} else {
 			// Encountered arbitrary node.
-			// +INFO INFO("  + Encountered arbitrary node.");
 
 			// Push onto partial tree node list
 			partialTree.push_back(*it);
-			// +INFO INFOF("    Adding to partialTree under %s", partialTree.front());
 
 			// Increase postOrderBound, if necessary
 			if (this->subclusters[*it].postOrder >= postOrderBound)
 				postOrderBound = this->subclusters[*it].postOrder + 1;
 
 			// Amend postOrder to reflect (absolute) position in partial tree
-			// +INFO INFOF("    Decreasing postOrder from %s to %s", this->subclusters[*it].postOrder, this->subclusters[*it].postOrder - postOrderDelta);
 			this->subclusters[*it].postOrder -= postOrderDelta;
 		}
 	}
 
-	// +INFO INFO("  ~ Looking at currently open partial tree");
 	// Commit currenly open partial tree.
 	this->subclusters[partialTree.front()].postOrder = partialTree.size() - 1;
 	// TODO move instead of copy
-	// +INFO infoVector(partialTree, "    Commiting partialTree ");
 	partialTrees.push_back(partialTree);
 
 	while (!partialTreeStack.empty()) {
-		// +INFO INFO("  ~ Emptying stack");
 		// Restore state
 		// TODO move instead of copy
 		partialTree = partialTreeStack.back();
@@ -663,11 +647,9 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 		this->subclusters[partialTree.front()].postOrder = partialTree.size() - 1;
 
 		// TODO move instead of copy
-		// +INFO infoVector(partialTree, "    Commiting partialTree ");
 		partialTrees.push_back(partialTree);
 	}
 
-	// +INFO infoPartialTrees(partialTrees, this->subclusters, "    ");
 
 	#ifdef DYNAMICCOMMUNITIESGENERATOR_VALIDATE
 	(GeneratorValidator(*this)).validatePartialTrees(partialTrees);
@@ -680,13 +662,11 @@ void DynamicCommunitiesGenerator::rejoinPartialTrees(std::vector<std::vector<ind
 	std::vector<index> cluster;
 	index postOrderDelta = 0;
 
-	// +INFO INFOF("rejoinPartialTrees(...)");
 
 	for (auto treeIt = partialTrees.cbegin(); treeIt != partialTrees.cend(); ++treeIt) {
 		for (auto nodeIt = (*treeIt).cbegin(); nodeIt != (*treeIt).cend(); ++nodeIt) {
 			// If the node *nodeIt is not the root of the partial tree
 			if (nodeIt != (*treeIt).cbegin())
-			// +INFO INFOF("  → Setting for %s, postOrder = %s, (was %s)", *nodeIt, this->subclusters[*nodeIt].postOrder + postOrderDelta, this->subclusters[*nodeIt].postOrder);
 			if (nodeIt != (*treeIt).cbegin())
 				this->subclusters[*nodeIt].postOrder += postOrderDelta;
 			cluster.push_back(*nodeIt);
@@ -694,15 +674,11 @@ void DynamicCommunitiesGenerator::rejoinPartialTrees(std::vector<std::vector<ind
 
 		// Increase postOrderDelta
 		postOrderDelta += (*treeIt).size() - 1;
-		// +INFO INFOF("    Increasing postOrderDelta to %s", postOrderDelta);
 	}
 
 	for (auto treeIt = partialTrees.crbegin(); treeIt != partialTrees.crend(); ++treeIt) {
-		// +INFO INFOF("  → Setting for %s, postOrder = %s, parent = %s", (*treeIt).front(), postOrderDelta,
-		// +INFO	(treeIt + 1 != partialTrees.crend())? (*(treeIt + 1)).front() : 0);
 		this->subclusters[(*treeIt).front()].postOrder = postOrderDelta;
 		++postOrderDelta;
-		// +INFO INFOF("    Increasing postOrderDelta to %s", postOrderDelta);
 
 		// Set the parent pointer to the partial tree's root node
 		//  - If it is the first partial tree, set to 0. The root node is the cluster's new root
