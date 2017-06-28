@@ -11,6 +11,8 @@
 #define DYNAMICCOMMUNITIESGENERATOR_VALIDATOR
 // #define DYNAMICCOMMUNITIESGENERATOR_VALIDATE
 
+#define DOUBLE_MARGIN_OF_ERROR 1/32
+
 #include <vector>
 
 #include "../Globals.h"

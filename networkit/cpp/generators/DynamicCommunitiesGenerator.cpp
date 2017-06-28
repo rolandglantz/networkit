@@ -90,6 +90,7 @@ SubclusterEdges::SubclusterEdges(SymmetricMatrix<double> affinities)
 		for (count j = i + 1; j <= affinities.getN(); j++) {
 			this->availableEdges.set(i, j, 1);
 			this->availableEdgesWeight += affinities.get(i, j);
+			++this->availableEdgesNumber;
 		}
 	}
 }
@@ -149,9 +150,17 @@ count SubclusterEdges::getSelectedEdgesNumber() const {
 }
 
 SubclusterEdges::Index SubclusterEdges::availableEdgeAtDistribution(double affinity) const {
-	if (affinity >= this->availableEdgesWeight || affinity < 0) {
-		throw("SubclusterEdges::availableEdgeAtDistribution: Invalid affinity value");
-	}
+	// Allow negative affinity within a small error
+	if (affinity < 0 && affinity >= -DOUBLE_MARGIN_OF_ERROR)
+		affinity = 0;
+
+	// Allow affinity greater equal the availableEdgesWeight within a small error
+	if (affinity >= this->availableEdgesWeight
+		&& affinity < this->availableEdgesWeight + DOUBLE_MARGIN_OF_ERROR)
+		affinity -= DOUBLE_MARGIN_OF_ERROR;
+
+	Aux::enforce(affinity < this->availableEdgesWeight && affinity >= 0,
+		"SubclusterEdges::availableEdgeAtDistribution: Invalid affinity value");
 
 	double cumulativeAffinity = 0;
 
@@ -279,8 +288,12 @@ Partition DynamicCommunitiesGenerator::next() {
 	(GeneratorValidator(*this)).validateClusterNum();
 	#endif
 
-	this->performMerge();
-	this->performSplit();
+	if (this->clusters.size() > 2) {
+		// Don't perform cluster operations if there is only one cluster.
+		// Also prevents a crash, when there is only one cluster (and a merge is tried).
+		this->performMerge();
+		this->performSplit();
+	}
 	this->performIndividualMoves();
 
 	Partition partition(this->individuals.size() - 1);
