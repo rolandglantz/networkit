@@ -405,7 +405,7 @@ void DynamicCommunitiesGenerator::moveIndividual(index v, index subcluster) {
 
 	if (subcluster == this->individuals[v].homeSubcluster) {
 		// In home subcluster
-		q = Aux::Random::integer(1, this->subclusters.size() - 1);
+		q = Aux::Random::integer(1, this->subclusters.size() - 2);
 
 		if (q >= this->individuals[v].homeSubcluster)
 			++q;
@@ -418,7 +418,7 @@ void DynamicCommunitiesGenerator::moveIndividual(index v, index subcluster) {
 			q = this->individuals[v].homeSubcluster;
 		} else {
 			// Decided to move to arbitrary subcluster, but not the home subcluster
-			q = Aux::Random::integer(1, this->subclusters.size() - 2);
+			q = Aux::Random::integer(1, this->subclusters.size() - 3);
 
 			if (q >= this->individuals[v].homeSubcluster)
 				// Skip the home subcluster, if necessary
