@@ -178,8 +178,8 @@ SubclusterEdges::Index SubclusterEdges::availableEdgeAtDistribution(double affin
 	return this->availableEdges.indexFromIterator(availableIt);
 }
 
-AffinityGenerator::Affinities AffinityGenerator::halfHalf(count k, double w) const {
-	AffinityGenerator::Affinities affinities(k);
+AffinitiesGenerator::Affinities AffinitiesGenerator::halfHalf(count k, double w) const {
+	AffinitiesGenerator::Affinities affinities(k);
 
 	double intraEdgeWeight = 1;
 	double interEdgeWeight = w;
@@ -191,6 +191,38 @@ AffinityGenerator::Affinities AffinityGenerator::halfHalf(count k, double w) con
 	}
 
 	for (index i = k / 2 + 1; i <= k; ++i) {
+		for (index j = i + 1; j <= k; ++j) {
+			affinities.set(i, j, intraEdgeWeight);
+		}
+	}
+
+	for (index i = 1; i <= k / 2; ++i) {
+		for (index j = k / 2 + 1; j <= k; ++j) {
+			affinities.set(i, j, interEdgeWeight);
+		}
+	}
+
+	return affinities;
+}
+
+AffinitiesGenerator::Affinities AffinitiesGenerator::halfHalf(count k, double w, std::vector<std::vector<index>>& parts) const {
+	AffinitiesGenerator::Affinities affinities(k);
+
+	double intraEdgeWeight = 1;
+	double interEdgeWeight = w;
+
+	parts.clear();
+	parts.resize(2, std::vector<index>());
+
+	for (index i = 1; i <= k / 2; ++i) {
+		parts[0].push_back(i);
+		for (index j = i + 1; j <= k / 2; ++j) {
+			affinities.set(i, j, intraEdgeWeight);
+		}
+	}
+
+	for (index i = k / 2 + 1; i <= k; ++i) {
+		parts[1].push_back(i);
 		for (index j = i + 1; j <= k; ++j) {
 			affinities.set(i, j, intraEdgeWeight);
 		}

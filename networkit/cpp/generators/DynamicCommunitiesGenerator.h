@@ -135,14 +135,15 @@ protected:
 	count availableEdgesNumber, selectedEdgesNumber;
 };
 
-class AffinityGenerator {
+class AffinitiesGenerator {
 public:
 	typedef SymmetricMatrix<double> Affinities;
 
-	AffinityGenerator() = default;
-	~AffinityGenerator() = default;
+	AffinitiesGenerator() = default;
+	~AffinitiesGenerator() = default;
 
 	Affinities halfHalf(count k, double w) const;
+	Affinities halfHalf(count k, double w, std::vector<std::vector<index>>& parts) const;
 };
 
 class DynamicCommunitiesGenerator {
@@ -211,7 +212,7 @@ protected:
  */
 class GeneratorState {
 public:
-	GeneratorState(DynamicCommunitiesGenerator& generator) : generator(generator) {};
+	GeneratorState(const DynamicCommunitiesGenerator& generator) : generator(generator) {};
 	~GeneratorState() = default;
 
 	inline DynamicCommunitiesGenerator::Parameters getParameters() {
@@ -270,7 +271,7 @@ public:
 		return this->generator.individuals.at(v).homeSubcluster;
 	}
 protected:
-	DynamicCommunitiesGenerator& generator;
+	const DynamicCommunitiesGenerator& generator;
 };
 
 class Tracer {
