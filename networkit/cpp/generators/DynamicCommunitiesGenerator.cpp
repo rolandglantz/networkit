@@ -1018,10 +1018,14 @@ void GeneratorValidator::validateIndividuals() {
 		= this->state.getIndividuals();
 
 	for (auto it = individuals.cbegin() + 1; it != individuals.cend(); ++it) {
-		Aux::enforce((*it).subcluster != 0,
-			"Individual with invalid subcluster 0 encountered");
-		Aux::enforce((*it).homeSubcluster != 0,
-			"Individual with invalid home subcluster 0 encountered");
+		Aux::enforce((*it).subcluster > 0,
+			"Individual with invalid subcluster <= 0 encountered");
+		Aux::enforce((*it).homeSubcluster > 0,
+			"Individual with invalid home subcluster <= 0 encountered");
+		Aux::enforce((*it).subcluster < this->state.getSubclusters().size(),
+			"Individual with invalid subcluster >= subclusters.size() encountered");
+		Aux::enforce((*it).homeSubcluster < this->state.getSubclusters().size(),
+			"Individual with invalid home subcluster >= subclusters.size() encountered");
 	}
 }
 
