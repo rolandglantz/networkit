@@ -252,7 +252,6 @@ DynamicCommunitiesGenerator::DynamicCommunitiesGenerator(const Parameters parame
 		preGenerated(false),
 		individuals(parameters.n + 1, {0, 0}),
 		clusters(parameters.affinities.getN() + 1, std::vector<index>()),
-		// clusters(parameters.l + 1, std::vector<index>()),
 		subclusterEdges(parameters.affinities),
 		subclusters(parameters.affinities.getN() + 1, {0, 0, 0}) {
 	// Assign each subclusters to its own clusters
@@ -261,40 +260,6 @@ DynamicCommunitiesGenerator::DynamicCommunitiesGenerator(const Parameters parame
 		this->clusters[i].push_back(i);
 	}
 
-/*	// Assign subclusters into l clusters only.
-	// This approach is problematic as there is no regard to affinities.
-	count perCluster = (this->subclusters.size() - 1) / parameters.l;
-	std::vector<std::vector<std::vector<index>>> clusterPartialTrees(this->clusters.size(),
-		std::vector<std::vector<index>>(0));
-	count leftSubclusters =  (this->subclusters.size() - 1) % parameters.l;
-	index qq = 1;
-	for (index c = 1; c < this->clusters.size(); ++c) {
-		for (index counter = 0; counter < perCluster; ++counter) {
-			this->subclusters[qq].cluster = c;
-			this->clusters[c].push_back(qq);
-			clusterPartialTrees[c].emplace_back(1, qq);
-			++qq;
-		}
-
-		if (leftSubclusters > 0) {
-			this->subclusters[qq].cluster = c;
-			this->clusters[c].push_back(qq);
-			clusterPartialTrees[c].emplace_back(1, qq);
-			++qq;
-			--leftSubclusters;
-		}
-	}
-
-	for (auto it = clusterPartialTrees.cbegin(); it != clusterPartialTrees.cend(); ++it) {
-		this->rejoinPartialTrees(*it);
-		std::vector<index>& cluster = this->clusters[it - clusterPartialTrees.cbegin()];
-		for (auto iIt = cluster.cbegin(); iIt != cluster.cend(); ++iIt) {
-			for (auto jIt = iIt + 1; jIt != cluster.cend(); ++jIt) {
-				this->subclusterEdges.selectEdge(*iIt, *jIt);
-			}
-		}
-	}
-*/
 	count perSubcluster = parameters.n / (this->subclusters.size() - 1);
 	count left = parameters.n % (this->subclusters.size() - 1);
 
