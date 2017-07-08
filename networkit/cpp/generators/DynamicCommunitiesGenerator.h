@@ -11,7 +11,19 @@
 #define DYNAMICCOMMUNITIESGENERATOR_VALIDATOR
 // #define DYNAMICCOMMUNITIESGENERATOR_VALIDATE
 
-#define DOUBLE_MARGIN_OF_ERROR 1/32
+// Enable one of the following definitions to activate splits and merges
+
+// #define DYNAMICCOMMUNITIESGENERATOR_MERGE_ORIG
+// #define DYNAMICCOMMUNITIESGENERATOR_MERGE_1STEP // Not Implemented
+#define DYNAMICCOMMUNITIESGENERATOR_MERGE_2STEP
+
+// #define DYNAMICCOMMUNITIESGENERATOR_SPLIT_ORIG
+// #define DYNAMICCOMMUNITIESGENERATOR_SPLIT_LARGEST
+#define	DYNAMICCOMMUNITIESGENERATOR_SPLIT_3STEP
+// #define	DYNAMICCOMMUNITIESGENERATOR_SPLIT_2STEP // Not Implemented
+// #define	DYNAMICCOMMUNITIESGENERATOR_SPLIT_1STEP // Not Implemented
+
+#define DOUBLE_MARGIN_OF_ERROR 1.0 / 32.0
 
 #include <vector>
 
@@ -23,6 +35,7 @@ namespace NetworKit {
 template<typename T>
 class SymmetricMatrix {
 public:
+	typedef typename std::vector<T>::iterator iterator;
 	typedef typename std::vector<T>::const_iterator const_iterator;
 	struct Index {
 		index i, j;
@@ -32,7 +45,7 @@ public:
 	SymmetricMatrix(count n, const T& value) : n(n), buf((n - 1)*n / 2, value) {};
 	~SymmetricMatrix() = default;
 
-	T get(index i, index j) {
+	T get(index i, index j) const {
 		index ind = calcBufIndex(i, j);
 		return this->buf[ind];
 	}
@@ -44,6 +57,13 @@ public:
 
 	count getN() const {
 		return this->n;
+	}
+
+	iterator begin() {
+		return this->buf.begin();
+	}
+	iterator end() {
+		return this->buf.end();
 	}
 
 	const_iterator cbegin() const {
@@ -58,8 +78,10 @@ public:
 			throw("SymmetricMatrix::indexFromIterator: Iterator seems to be invalid");
 		}
 
-		index bufIndex = it - this->cbegin();
+		return this->indexFromPosition(it - this->cbegin());
+	}
 
+	Index indexFromPosition(index bufIndex) const {
 		SymmetricMatrix<T>::Index ind = {1,0};
 
 		//     1 2 3 4

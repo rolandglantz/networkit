@@ -10,13 +10,30 @@
 #include "../auxiliary/Enforce.h"
 #include "../auxiliary/Log.h"
 
+#include <cstdlib>
 #include <utility>
 #include <string>
+#include <algorithm>
 #include <random>
 
 namespace NetworKit {
 
 void infoVector(const std::vector<index> v, const char* prefix) {
+	std::string s = prefix;
+
+	s += "[";
+
+	for (auto val : v) {
+		s += std::to_string(val);
+		s += " ";
+	}
+
+	s += "]";
+
+	INFO(s.c_str());
+}
+
+void infoVector(const std::vector<double> v, const char* prefix) {
 	std::string s = prefix;
 
 	s += "[";
@@ -77,6 +94,52 @@ void infoCluster(const std::vector<index>& cluster,
 
 
 	INFO(s.c_str());
+}
+
+std::vector<count> subtreeSizes(const std::vector<index>& cluster, const std::vector<DynamicCommunitiesGenerator::Subcluster>& subclusters) {
+	std::vector<count> subtreeSizes(cluster.size(), 0);
+
+	if (cluster.size() == 0)
+		return subtreeSizes;
+
+	std::vector<index> nodeStack;
+	std::vector<index> preOrderStack;
+	std::vector<count> sizeStack;
+
+	preOrderStack.push_back(0);
+	nodeStack.push_back(cluster[0]);
+	sizeStack.push_back(1);
+
+	for (auto it = cluster.cbegin() + 1; it != cluster.cend(); ++it) {
+		while (subclusters[*it].postOrder > subclusters[nodeStack.back()].postOrder) {
+			count size = sizeStack.back();
+
+			sizeStack.pop_back();
+			nodeStack.pop_back();
+
+			sizeStack.back() += size;
+			subtreeSizes[preOrderStack.back()] = size;
+			preOrderStack.pop_back();
+		}
+
+		nodeStack.push_back(*it);
+		preOrderStack.push_back(it - cluster.cbegin());
+		sizeStack.push_back(1);
+	}
+
+	while (!nodeStack.empty()) {
+		count size = sizeStack.back();
+
+		sizeStack.pop_back();
+		nodeStack.pop_back();
+
+		if (!nodeStack.empty())
+			sizeStack.back() += size;
+		subtreeSizes[preOrderStack.back()] = size;
+		preOrderStack.pop_back();
+	}
+
+	return subtreeSizes;
 }
 
 SubclusterEdges::SubclusterEdges(SymmetricMatrix<double> affinities)
@@ -321,6 +384,7 @@ void DynamicCommunitiesGenerator::preGenerate() {
 }
 
 void DynamicCommunitiesGenerator::performMerge() {
+	#ifdef DYNAMICCOMMUNITIESGENERATOR_MERGE_ORIG
 	double availableEdgesWeight = this->subclusterEdges.getAvailableEdgesWeight();
 
 	// Choose r \in [0, availableEdgesWeight)
@@ -330,12 +394,86 @@ void DynamicCommunitiesGenerator::performMerge() {
 
 	this->addSubclusterEdge(index.i, index.j);
 
+	#elif defined(DYNAMICCOMMUNITIESGENERATOR_MERGE_2STEP)
+
+	SymmetricMatrix<double> inverseCounts(this->clusters.size() - 1);
+	double inverseSizeSum = 0;
+
+	for (auto oIt = this->clusters.cbegin() + 1; oIt != this->clusters.cend(); ++oIt) {
+		for (auto iIt = oIt + 1; iIt != this->clusters.cend(); ++iIt) {
+			inverseCounts.set(oIt - this->clusters.cbegin(), iIt - this->clusters.cbegin(),
+				1.0 / ((*oIt).size() + (*iIt).size()));
+			inverseSizeSum += 1.0 / ((*oIt).size() + (*iIt).size());
+		}
+	}
+
+	double r = Aux::Random::real(inverseSizeSum);
+	double runningSum = 0;
+	auto clusterIt = inverseCounts.cbegin();
+
+	for (; clusterIt != inverseCounts.cend(); ++clusterIt) {
+		runningSum += *clusterIt;
+		if (runningSum > r) {
+			break;
+		}
+	}
+	if (clusterIt == inverseCounts.cend()) {
+		clusterIt = inverseCounts.cend() - 1;
+	}
+	auto mergeClusters = inverseCounts.indexFromIterator(clusterIt);
+
+	struct Edge {
+		index i, j;
+		double affinity;
+	};
+
+	std::vector<index>& clusterI = this->clusters[mergeClusters.i],
+		clusterJ = this->clusters[mergeClusters.j];
+	double affinitiesSum = 0;
+
+	std::vector<Edge> edges;
+	edges.reserve(clusterI.size() * clusterJ.size());
+
+	for (auto oIt = clusterI.cbegin(); oIt != clusterI.cend(); ++oIt) {
+		for (auto iIt = clusterJ.cbegin(); iIt != clusterJ.cend(); ++iIt) {
+			double affinity = this->parameters.affinities.get(*oIt, *iIt);
+			edges.push_back({
+				*oIt,
+				*iIt,
+				affinity
+			});
+			affinitiesSum += affinity;
+		}
+	}
+
+	// Choose r \in [0, affinitiesSum)
+	r = Aux::Random::real(affinitiesSum);
+	runningSum = 0;
+	auto edgeIt = edges.cbegin();
+
+	for (; edgeIt != edges.cend(); ++edgeIt) {
+		runningSum += (*edgeIt).affinity;
+		if (runningSum > r) {
+			break;
+		}
+	}
+	if (edgeIt == edges.cend()) {
+		edgeIt = edges.cend() - 1;
+	}
+
+	this->addSubclusterEdge((*edgeIt).i, (*edgeIt).j);
+
+	#elif defined(DYNAMICCOMMUNITIESGENERATOR_MERGE_2STEP)
+
+	#endif
+
 	#ifdef DYNAMICCOMMUNITIESGENERATOR_VALIDATE
 	(GeneratorValidator(*this)).validate();
-	#endif
+	#endif /* DYNAMICCOMMUNITIESGENERATOR_VALIDATE */
 }
 
 void DynamicCommunitiesGenerator::performSplit() {
+	#ifdef DYNAMICCOMMUNITIESGENERATOR_SPLIT_ORIG
 	count numberOfEdges = this->subclusters.size() - this->clusters.size();
 
 	count sum = 0;
@@ -356,6 +494,107 @@ void DynamicCommunitiesGenerator::performSplit() {
 		}
 	}
 
+	#elif defined(DYNAMICCOMMUNITIESGENERATOR_SPLIT_LARGEST)
+
+	const std::vector<index>& largestCluster = *std::max_element(
+		this->clusters.cbegin(), this->clusters.cend(),
+		[](const std::vector<index>& c1, const std::vector<index>& c2) {
+			return c1.size() < c2.size();
+		}
+	);
+
+/*	// Choose r \in [1, largestCluster.size() - 1]
+	index r = Aux::Random::integer(1, largestCluster.size() - 1);
+
+	index i = largestCluster[r];
+*/
+	auto subtreeSizesV = subtreeSizes(largestCluster, this->subclusters);
+
+	auto it = std::min_element(
+		subtreeSizesV.cbegin() + 1, subtreeSizesV.cend(),
+		[subtreeSizesV](const count a, const count b) {
+			return abs(static_cast<int64_t>(subtreeSizesV[0]) - 2 * static_cast<int64_t>(a))
+				< abs(static_cast<int64_t>(subtreeSizesV[0]) - 2 * static_cast<int64_t>(b));
+		}
+	);
+	index i = largestCluster[it - subtreeSizesV.cbegin()];
+
+	#elif defined(DYNAMICCOMMUNITIESGENERATOR_SPLIT_3STEP)
+
+	// Choose r \in [0, number_of_subclusters]
+	index r = Aux::Random::integer(this->subclusters.size() - 1);
+	auto clusterIt = this->clusters.cbegin() + 1;
+	index runningSum = 0;
+
+	for (; clusterIt != this->clusters.cend(); ++clusterIt) {
+		runningSum += (*clusterIt).size();
+		if (runningSum > r) {
+			break;
+		}
+	}
+	if (clusterIt == this->clusters.cend()) {
+		clusterIt = this->clusters.cend() - 1;
+	}
+
+	if (clusterIt->size() < 2)
+		return this->performSplit();
+
+	index i;
+
+	// Choose r \in [0, 1]
+	if (Aux::Random::integer(1)) {
+		// Split antiproportional to affinity
+		std::vector<double> cumulativeInverseAffinities;
+		cumulativeInverseAffinities.reserve(clusterIt->size());
+		cumulativeInverseAffinities.push_back(0);
+
+		for (auto it = clusterIt->cbegin() + 1; it != clusterIt->cend(); ++it) {
+			double inverseAffinity = static_cast<double>(1) / this->parameters.affinities.get(*it,
+				this->subclusters[*it].parent);
+			cumulativeInverseAffinities.push_back(
+				cumulativeInverseAffinities.back() + inverseAffinity
+			);
+		}
+
+		// Choose r \in [0, cumulativeInverseAffinities.back())
+		double r = Aux::Random::real(cumulativeInverseAffinities.back());
+
+		auto chosenSubcluster = std::lower_bound(cumulativeInverseAffinities.cbegin(),
+			cumulativeInverseAffinities.cend(), r);
+
+		i = (*clusterIt)[chosenSubcluster - cumulativeInverseAffinities.cbegin()];
+	} else {
+		// Split antiproportional to difference to optimal split size
+		std::vector<double> cumulativeInverseDifference;
+		cumulativeInverseDifference.reserve(clusterIt->size());
+		cumulativeInverseDifference.push_back(0);
+
+		auto subtreeSizesV = subtreeSizes(*clusterIt, this->subclusters);
+
+		for (auto it = clusterIt->cbegin() + 1; it != clusterIt->cend(); ++it) {
+			double inverseDifference = static_cast<double>(1) / abs(static_cast<int64_t>(subtreeSizesV.front())
+				- 2 * static_cast<int64_t>(subtreeSizesV[it - clusterIt->cbegin()]));
+			cumulativeInverseDifference.push_back(
+				cumulativeInverseDifference.back() + inverseDifference
+			);
+		}
+
+		// Choose r \in [0, cumulativeInverseDifference.back())
+		double r = Aux::Random::real(cumulativeInverseDifference.back());
+
+		auto chosenSubcluster = std::lower_bound(cumulativeInverseDifference.cbegin(),
+			cumulativeInverseDifference.cend(), r);
+		i = (*clusterIt)[chosenSubcluster - cumulativeInverseDifference.cbegin()];
+	}
+
+	#elif defined(DYNAMICCOMMUNITIESGENERATOR_SPLIT_2STEP)
+
+
+	#elif defined(DYNAMICCOMMUNITIESGENERATOR_SPLIT_1STEP)
+
+
+	#endif
+
 	// Development artefact
 	// Aux::enforce(i != 0, "Found i = 0");
 	// Aux::enforce(this->subclusters[i].parent != 0, "Found subcluster edge with parent == 0!");
@@ -368,18 +607,18 @@ void DynamicCommunitiesGenerator::performSplit() {
 }
 
 void DynamicCommunitiesGenerator::performIndividualMoves() {
-	count no_of_moves = this->parameters.p_move_v * this->parameters.n;
+	count noOfMoves = this->parameters.p_move_v * this->parameters.n;
 
 	std::vector<index> individuals, subcluster;
-	individuals.reserve(no_of_moves);
-	subcluster.reserve(no_of_moves);
+	individuals.reserve(noOfMoves);
+	subcluster.reserve(noOfMoves);
 
 	std::mt19937_64& urng = Aux::Random::getURNG();
 	std::uniform_int_distribution<uint64_t> dist{1, this->parameters.n};
 
 	index i;
 
-	for (; individuals.size() < no_of_moves;) {
+	for (; individuals.size() < noOfMoves;) {
 		i = dist(urng);
 
 		// Ignore, if the individual is already marked to be moved
@@ -391,7 +630,7 @@ void DynamicCommunitiesGenerator::performIndividualMoves() {
 		this->individuals[i].subcluster = 0;
 	}
 
-	for (i = 0; i < no_of_moves; ++i) {
+	for (i = 0; i < noOfMoves; ++i) {
 		this->moveIndividual(individuals[i], subcluster[i]);
 	}
 
@@ -437,9 +676,8 @@ void DynamicCommunitiesGenerator::addSubclusterEdge(index i, index j) {
 	//  Figure out which cluster to make parent, child
 	this->makeClusterRoot(j);
 
-	// TODO? Is this a copy? Use a reference instead?
-	std::vector<index> iCluster = this->clusters[this->subclusters[i].cluster];
-	std::vector<index> jCluster = this->clusters[this->subclusters[j].cluster];
+	const std::vector<index>& iCluster = this->clusters[this->subclusters[i].cluster];
+	const std::vector<index>& jCluster = this->clusters[this->subclusters[j].cluster];
 
 	std::vector<index> mergedCluster;
 	mergedCluster.reserve(iCluster.size() + jCluster.size());
@@ -487,20 +725,18 @@ void DynamicCommunitiesGenerator::addSubclusterEdge(index i, index j) {
 		this->subclusters[z].postOrder += jClusterSize;
 	}
 
-	// Remove all edges between the two new clusters to the available edge pool
+	// Remove all edges between the two new clusters from the available edge pool
 	for (iClusterIt = iCluster.cbegin(); iClusterIt != iCluster.cend(); ++iClusterIt) {
 		for (jClusterIt = jCluster.cbegin(); jClusterIt != jCluster.cend(); ++jClusterIt) {
 			this->subclusterEdges.selectEdge(*iClusterIt, *jClusterIt);
 		}
 	}
 
-	// TODO move instead of copy
-	this->clusters[newClusterIndex] = mergedCluster;
+	this->clusters[newClusterIndex].swap(mergedCluster);
 	if (unusedClusterIndex != this->clusters.size() - 1) {
 		for (auto it = this->clusters.back().cbegin(); it != this->clusters.back().cend(); ++it)
 			this->subclusters[*it].cluster = unusedClusterIndex;
-		// TODO move instead of copy
-		this->clusters[unusedClusterIndex] = this->clusters.back();
+		this->clusters[unusedClusterIndex].swap(this->clusters.back());
 	}
 	this->clusters.pop_back();
 }
