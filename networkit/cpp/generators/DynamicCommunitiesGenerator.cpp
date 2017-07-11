@@ -229,6 +229,7 @@ SubclusterEdges::Index SubclusterEdges::availableEdgeAtDistribution(double affin
 
 	auto availableIt = this->availableEdges.cbegin();
 	auto affinitiesIt = this->affinities.cbegin();
+	auto last = this->availableEdges.cend();
 
 	for (; availableIt != this->availableEdges.cend(); ++availableIt, ++affinitiesIt) {
 		if (*availableIt == 0)
@@ -238,11 +239,13 @@ SubclusterEdges::Index SubclusterEdges::availableEdgeAtDistribution(double affin
 		if (cumulativeAffinity > affinity) {
 			break;
 		}
+
+		last = availableIt;
 	}
-	// TODO
-	// If there is no break, default to last edge
-	// Current approach may not work when availableIt is already at the post-end (::end()) stage.
-	// (Due to floating point calculation errors)
+
+	// In case affinity was never reached, default to the last available edge
+	if (availableIt == this->availableEdges.cend())
+		availableIt = last;
 
 	Aux::enforce(availableIt != this->availableEdges.cend(),
 		"SubclusterEdges::availableEdgeAtDistribution: Invalid iterator (implementation is wip)");
@@ -830,8 +833,7 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 	std::vector<std::vector<index>> partialTreeStack;
 	std::vector<index> postOrderDeltaStack;
 
-	// TODO? Is this a copy? Use a reference instead?
-	std::vector<index> cluster = this->clusters[this->subclusters[i].cluster];
+	std::vector<index>& cluster = this->clusters[this->subclusters[i].cluster];
 
 	// Stack of root nodes of partial trees
 	std::vector<index> rootStack;

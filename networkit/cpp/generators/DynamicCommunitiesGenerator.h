@@ -41,6 +41,7 @@ public:
 		index i, j;
 	};
 
+	SymmetricMatrix() : n(0), buf(0) {};
 	SymmetricMatrix(count n) : n(n), buf((n - 1)*n / 2) {}
 	SymmetricMatrix(count n, const T& value) : n(n), buf((n - 1)*n / 2, value) {};
 	~SymmetricMatrix() = default;
@@ -175,7 +176,7 @@ class DynamicCommunitiesGenerator {
 
 public:
 	struct Parameters {
-		const SymmetricMatrix<double> affinities;
+		SymmetricMatrix<double> affinities;
 		count l;
 
 		count n;
