@@ -3085,6 +3085,9 @@ cdef class Correspondences:
 	def __cinit__(self):
 		self._this = new _Correspondences()
 
+	def __dealloc__(self):
+		del self._this
+
 	def getDistributions(self, Partition partition1, Partition partition2):
 		self._this.getDistributions(partition1._this, partition2._this)
 	def run(self, Partition partition1, Partition partition2):
@@ -3104,6 +3107,9 @@ cdef class Corres:
 
 	def __cinit__(self):
 		self._this = new _Corres()
+
+	def __dealloc__(self):
+		del self._this
 
 	def run(self, Partition partition1, Partition partition2):
 		return self._this.run(partition1._this, partition2._this)
