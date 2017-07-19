@@ -2813,9 +2813,17 @@ cdef class DCGParameters:
 	cdef _DCGParameters* _this
 	cdef DCGAffinities _affinities
 
-	def __cinit__(self):
+	def __cinit__(self, affinities=None, l=0, n=0, alpha=0.0, p_move_v=0.0):
 		self._this = new _DCGParameters()
 		self._affinities = None
+
+		if affinities is not None:
+			self.affinities = affinities
+
+		self.l = l
+		self.n = n
+		self.alpha = alpha
+		self.p_move_v = p_move_v
 
 	def __dealloc__(self):
 		del self._this
@@ -2846,14 +2854,14 @@ cdef class DCGParameters:
 	def alpha(self):
 		return self._this.alpha
 	@alpha.setter
-	def alpha(self, count alpha):
+	def alpha(self, double alpha):
 		self._this.alpha = alpha
 
 	@property
 	def p_move_v(self):
 		return self._this.p_move_v
 	@p_move_v.setter
-	def p_move_v(self, count p_move_v):
+	def p_move_v(self, double p_move_v):
 		self._this.p_move_v = p_move_v
 
 
