@@ -803,10 +803,8 @@ void DynamicCommunitiesGenerator::removeSubclusterEdge(index i, index j) {
 	}
 
 	this->subclusters[i].parent = 0;
-	// TODO move instead of copy
-	this->clusters[oldClusterIndex] = newParentCluster;
-	// TODO move instead of copy
-	this->clusters.push_back(newChildCluster);
+	this->clusters[oldClusterIndex].swap(newParentCluster);
+	this->clusters.push_back(std::move(newChildCluster));
 }
 
 void DynamicCommunitiesGenerator::makeClusterRoot(index i) {
@@ -855,8 +853,7 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 			if (partialTree.size() > 0) {
 				// Push the partial tree and the postOrderDelta onto their stack
 
-				// TODO move instead of copy
-				partialTreeStack.push_back(partialTree);
+				partialTreeStack.push_back(std::move(partialTree));
 				partialTree.clear();
 
 				postOrderDeltaStack.push_back(postOrderDelta);
@@ -886,12 +883,10 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 				postOrderDeltaStack.pop_back();
 
 				// Commit partial tree
-				// TODO move instead of copy
-				partialTrees.push_back(partialTree);
+				partialTrees.push_back(std::move(partialTree));
 
 				// Restore partialTree
-				// TODO move instead of copy
-				partialTree = partialTreeStack.back();
+				partialTree.swap(partialTreeStack.back());
 				partialTreeStack.pop_back();
 			}
 
@@ -919,13 +914,11 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 
 	// Commit currenly open partial tree.
 	this->subclusters[partialTree.front()].postOrder = partialTree.size() - 1;
-	// TODO move instead of copy
-	partialTrees.push_back(partialTree);
+	partialTrees.push_back(std::move(partialTree));
 
 	while (!partialTreeStack.empty()) {
 		// Restore state
-		// TODO move instead of copy
-		partialTree = partialTreeStack.back();
+		partialTree.swap(partialTreeStack.back());
 		partialTreeStack.pop_back();
 
 		postOrderDelta = postOrderDeltaStack.back();
@@ -933,8 +926,7 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 
 		this->subclusters[partialTree.front()].postOrder = partialTree.size() - 1;
 
-		// TODO move instead of copy
-		partialTrees.push_back(partialTree);
+		partialTrees.push_back(std::move(partialTree));
 	}
 
 
