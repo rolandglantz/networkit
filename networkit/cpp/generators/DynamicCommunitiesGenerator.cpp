@@ -363,10 +363,13 @@ Partition DynamicCommunitiesGenerator::next() {
 	this->performIndividualMoves();
 
 	Partition partition(this->individuals.size() - 1);
-	partition.setUpperBound(this->subclusters.size());
+	partition.setUpperBound(this->clusters.size() - 1);
 
 	for (auto it = this->individuals.cbegin() + 1; it != this->individuals.cend(); ++it) {
-		partition.addToSubset((*it).subcluster - 1, it - this->individuals.cbegin() - 1);
+		partition.addToSubset(
+			this->subclusters[it->subcluster].cluster - 1,
+			it - this->individuals.cbegin() - 1
+		);
 	}
 
 	return partition;
