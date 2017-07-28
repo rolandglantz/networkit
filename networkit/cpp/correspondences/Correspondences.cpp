@@ -1985,33 +1985,130 @@ bool Correspondences::readSegmentationNormalizeClusters(std::string filename, Pa
     //std::vector<count> sortedCutWithGomoryHuParent(cardPartition1, numberOfElements);
     //std::cout << "Gusfield's algorithm ..." << std::endl;
     //TRACE("Gusfield's algorithm ...");
- 
-    time_t seconds0 = time(NULL);       
+
+    time_t seconds0 = time(NULL);
     count totalCut = gusfield(gomoryHuParent, cutWithGomoryHuParent,
-				//sortedGomoryHuParent, sortedCutWithGomoryHuParent,
-				bestS, bestT, bestBestBelongs,
-				incrementS, incrementT, decrementS, decrementT, getQualityTrivialSolutions,
-				greedyDescent, minCut);
+                //sortedGomoryHuParent, sortedCutWithGomoryHuParent,
+                bestS, bestT, bestBestBelongs,
+                incrementS, incrementT, decrementS, decrementT, getQualityTrivialSolutions,
+                greedyDescent, minCut);
     time_t seconds1 = time(NULL);
     std::cout << "Gusfield took " << seconds1 - seconds0 << " seconds." << std::endl;
 
-        
+
     //std::cout << "Minimum cut has weight " << minimumCut << std::endl;
     //(std::cout << "Maximum number of greedyDescents is " <<  maxNumberForwardGreedyDescents << std::endl;
     //TRACE("Minimum cut has weight ", minimumCut);
     //TRACE("Maximum number of greedyDescents ", maxNumberForwardGreedyDescents);
-        
+
     evaluateAllCorrespondences(gomoryHuParent, cutWithGomoryHuParent);
-        
+
     //TRACE("bestS is ", bestS);
     //TRACE("bestT is ", bestT);
     // std::vector<int> bestBestBelongsPrime(cardPartition2, 0);
     // getBestBelongsPrime(bestBestBelongs, bestBestBelongsPrime);
     // TRACE("bestBestBelongs is ", bestBestBelongs);
     // TRACE("bestBestBelongsPrime is ", bestBestBelongsPrime);
-        
+
     return(((double)totalCut)/((double)numberOfElements));
   }
 
-} /* namespace NetworKit */
 
+  /**********************************************************************/
+  /*                               detect                               */
+  /**********************************************************************/
+  void Correspondences::detect(unsigned int level, const Partition& partitionA, const Partition& partitionB) {
+    //level == 1: cuts through bipartite graph, not yet implemented
+    //level == 2: nontrivial (one-sided) correspondences
+    //level == 3: non-degenerate correspondences
+    //level == 4: mutual correspondences
+
+    if(level == 1) {
+        ERROR("Level == 1 not yet implemented. Sorry!");
+        return;
+    }
+
+    // Depending on level, choose the right functions for incrementing, decrementing S or T
+    count (Correspondences::*incrementS)(index newCluster) = &Correspondences::incrementS4;
+    count (Correspondences::*incrementT)(index newCluster) = &Correspondences::incrementT4;
+    void (Correspondences::*decrementS)(index newCluster) = &Correspondences::decrementS4;
+    void (Correspondences::*decrementT)(index newCluster) = &Correspondences::decrementT4;
+    count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins) = &Correspondences::getQualityTrivialSolutions4;
+    index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+				   std::vector<index>& insertedAt, count& position,
+				   std::vector<int>& bestBelongs,
+				   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+				   std::vector<bool>& doneWith) = &Correspondences::greedyDescent4;
+
+    count (Correspondences::*minCut)(index s, index t, std::vector<int>& bestBelongs,
+			    count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+			    void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+			    count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+			    index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+							   std::vector<index>& insertedAt, count& position,
+							   std::vector<int>& bestBelongs,
+							   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+							   std::vector<bool>& doneWith)) = &Correspondences::minCut4;
+    if(level == 2) {
+        incrementS = &Correspondences::incrementS2;
+        incrementT = &Correspondences::incrementT2;
+        decrementS = &Correspondences::decrementS2;
+        decrementT = &Correspondences::decrementT2;
+        getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions2;
+        greedyDescent = &Correspondences::greedyDescent4;
+        minCut = &Correspondences::minCut4;
+    }
+
+    if(level == 3) {
+        incrementS = &Correspondences::incrementS3;
+        incrementT = &Correspondences::incrementT3;
+        decrementS = &Correspondences::decrementS3;
+        decrementT = &Correspondences::decrementT3;
+        getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions3;
+        greedyDescent = &Correspondences::greedyDescent3;
+        minCut = &Correspondences::minCut4;
+    }
+
+    if(level == 4) {
+        incrementS = &Correspondences::incrementS4;
+        incrementT = &Correspondences::incrementT4;
+        decrementS = &Correspondences::decrementS4;
+        decrementT = &Correspondences::decrementT4;
+        getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions4;
+        greedyDescent = &Correspondences::greedyDescent4;
+        minCut = &Correspondences::minCut4;
+    }
+
+    numberOfElements = partitionA.numberOfElements();
+
+    index bestS, bestT;
+    std::vector<int> bestBestBelongs;
+
+    // Normalised permutations of partitionA and partitionB
+    Partition partition1, partition2;
+    // Mapping of old elements to new elements after normalization
+    std::vector<index> old2newElement(numberOfElements);
+
+    normalizeElements(partitionA, partitionB, partition1, partition2, old2newElement);
+
+    // Calculate distributions matrix
+    getDistributions(partition1, partition2);
+
+    // Make bipartite graph
+    makeBipartiteGraph(partition1, partition2);
+
+    // Initialise Gomory-Hu tree
+    gomoryHuParent = std::vector<index>(cardPartition1, cardPartition1);
+    cutWithGomoryHuParent = std::vector<count>(cardPartition1, numberOfElements);
+
+    // Build Gomory-Hu tree
+    // TODO totalCut unused variable
+    count totalCut = gusfield(
+        gomoryHuParent, cutWithGomoryHuParent,
+		bestS, bestT, bestBestBelongs,
+		incrementS, incrementT, decrementS, decrementT, getQualityTrivialSolutions,
+		greedyDescent, minCut
+    );
+  }
+
+} /* namespace NetworKit */
