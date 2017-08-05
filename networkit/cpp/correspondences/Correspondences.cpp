@@ -298,8 +298,8 @@ void Correspondences::normalizeElements(const Partition& partitionA, const Parti
     //the new number of any element in cluster i is smaller than
     //the new number of any element in cluster j whenever i < j
     std::map<index, count> cardinalityOfClusterA = partitionA.subsetSizeMap();
-    std::vector<count> currSlotInCluster(partitionA.numberOfSubsets(), 0);
-    for(count cluster = 1; cluster < partitionA.numberOfSubsets(); cluster++) {
+    std::vector<count> currSlotInCluster(partitionA.upperBound(), 0);
+    for(count cluster = 1; cluster < partitionA.upperBound(); cluster++) {
         currSlotInCluster[cluster] = currSlotInCluster[cluster-1] + cardinalityOfClusterA[cluster-1];
     }
     for(count oldElement = 0; oldElement < partitionA.numberOfElements(); oldElement++) {
@@ -311,7 +311,7 @@ void Correspondences::normalizeElements(const Partition& partitionA, const Parti
     //normalization of partitionA w.r.t newElementNumber
     // Partition tmpNormalPartitionA = Partition(partitionA.numberOfElements());
     normalPartitionA = Partition(partitionA.numberOfElements());
-    normalPartitionA.setUpperBound(partitionA.numberOfSubsets());
+    normalPartitionA.setUpperBound(partitionA.upperBound());
     for(count oldElement = 0; oldElement < partitionA.numberOfElements(); oldElement++) {
         normalPartitionA.addToSubset(partitionA.subsetOf(oldElement), old2newElement[oldElement]);
     }
@@ -319,7 +319,7 @@ void Correspondences::normalizeElements(const Partition& partitionA, const Parti
     //normalization of partitionB w.r.t newElementNumber
     // Partition tmpNormalPartitionB = Partition(partitionB.numberOfElements());
     normalPartitionB = Partition(partitionB.numberOfElements());
-    normalPartitionB.setUpperBound(partitionB.numberOfSubsets());
+    normalPartitionB.setUpperBound(partitionB.upperBound());
     for(count oldElement = 0; oldElement < partitionB.numberOfElements(); oldElement++) {
         normalPartitionB.addToSubset(partitionB.subsetOf(oldElement), old2newElement[oldElement]);
     }
