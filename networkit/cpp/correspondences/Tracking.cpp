@@ -17,13 +17,15 @@
 
 namespace NetworKit {
 
-/**
- * Polyfill for initializer-list constructor for std::set introduced in C++14.
- */
-template<typename T>
-inline std::set<T> set(std::initializer_list<T> l) {
-	std::set<T> s = l;
-	return s;
+std::vector<count> partitionSubsetSizes(const Partition& p) {
+	std::vector<count> sizes(p.upperBound(), 0);
+
+	p.forEntries([&](index, index s){
+		if (s != none)
+			sizes[s] += 1;
+	});
+
+	return sizes;
 }
 
 GHGraph::GHGraph(
@@ -83,20 +85,10 @@ GHGraph GHGraph::build(const std::vector<index>& parents, const std::vector<coun
 	);
 }
 
-/**
- * TODO
- * To be removed
- */
-std::vector<count> calculateChildrenNo(const std::vector<index>& parents) {
-	std::vector<count> childrenNo(parents.size(), 0);
-
-	for (auto it = parents.cbegin(); it != parents.cend(); ++it) {
-		if (*it < parents.size())
-			++childrenNo[*it];
-	}
-
-	return childrenNo;
+GHGraph::Neighbours GHGraph::neighbours(index node) const {
+	return GHGraph::Neighbours(*this, node);
 }
+
 
 std::vector<count> calculateSubtreeSizes(const std::vector<index>& parents) {
 	struct NodeData {
@@ -138,34 +130,51 @@ std::vector<count> calculateSubtreeSizes(const std::vector<index>& parents) {
 	return subtreeSizes;
 }
 
-namespace Strings {
-	const std::string space = " ";
-	const std::string arrow = "->";
-	const std::string equals = "=";
-	const std::string semicolon = ";";
-	const std::string comma = ",";
-	const std::string underscore = "_";
-	const std::string quote = "\"";
+CorrespondencesExtractor::CorrespondencesExtractor(Correspondences& correspondences)
+	: correspondences(correspondences) {}
 
-	const std::string opCurly = "{";
-	const std::string clCurly = "}";
-	const std::string opBracket = "[";
-	const std::string clBracket = "]";
+TimestepData::Correspondence  CorrespondencesExtractor::extract(const std::vector<index>& parts) const {
+	TimestepData::Correspondence correspondence = {
+		parts,
+		std::vector<index>(0),
 
-	const std::string digraph = "digraph";
-	const std::string rankSame = "rank=same;";
-	const std::string rankdirLR = "rankdir=LR;";
-	const std::string shapePlaintext = "shape=plaintext";
-	const std::string shapeSquare = "shape=square";
-	const std::string fixedsizeTrue = "fixedsize=true";
-	const std::string styleFilled = "style=filled";
-	const std::string styleFilledSolid = "style=\"filled,solid\"";
+		std::vector<index>(parts.size(), 0),
+		std::vector<index>(0)
+	};
 
-	const std::string labelEquals = "label=";
-	const std::string heightEquals = "height=";
-	const std::string widthEquals = "width=";
-	const std::string colorEquals = "color=";
-	const std::string fillcolorEquals = "fillcolor=";
+	count intersection = 0;
+	count sizePPrime = 0;
+	count sizeP = 0;
+
+	for (index i = 0; i < this->correspondences.cardPartition2; ++i) {
+		count sum = 0;
+
+		for (index part : parts) {
+			sum += this->correspondences.distributions[part][i];
+		}
+
+		if (2 * sum > this->correspondences.cardinalityOfCluster2[i]) {
+			correspondence.pPrime.push_back(i);
+			correspondence.pPrimeSizes.push_back(sum);
+
+			for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+				correspondence.pSizes[it - parts.cbegin()]
+					+= this->correspondences.distributions[*it][i];
+			}
+
+			intersection += sum;
+			sizePPrime += this->correspondences.cardinalityOfCluster2[i];
+		}
+	}
+
+	for (index part : parts) {
+		sizeP += this->correspondences.cardinalityOfCluster1[part];
+	}
+
+	correspondence.intersectionSize = intersection;
+	correspondence.unionSize = sizePPrime + sizeP - intersection;
+
+	return correspondence;
 }
 
 TimestepData::Timestep LeafExpansion::analyseFirst(const Partition& partition) const {
@@ -182,7 +191,7 @@ TimestepData::Timestep LeafExpansion::analyseFirst(const Partition& partition) c
 	partFile.close();
 
 	return {
-		partition.subsetSizes(),
+		partitionSubsetSizes(partition),
 		std::vector<TimestepData::Correspondence>()
 	};
 }
@@ -192,12 +201,13 @@ TimestepData::Timestep LeafExpansion::analyseStep(
 	const Partition& partition2
 ) const {
 	TimestepData::Timestep timestep;
-	timestep.partitionSizes = partition1.subsetSizes();
+	timestep.partitionSizes = partitionSubsetSizes(partition2);
 
 	std::vector<TimestepData::Correspondence>& correspondences = timestep.correspondences;
 
 	Correspondences c;
 	c.detect(2, partition1, partition2);
+	CorrespondencesExtractor corrExtractor(c);
 
 	std::vector<count> subtreeSizes = calculateSubtreeSizes(c.gomoryHuParent);
 
@@ -251,23 +261,23 @@ TimestepData::Timestep LeafExpansion::analyseStep(
 					std::vector<count> parts;
 					parts.push_back(it - subtreeSizes.cbegin());
 					parts.push_back(parent);
-					correspondences.push_back(this->extractCorrespondence(c, parts));
+					correspondences.push_back(corrExtractor.extract(parts));
 				} else {
 					// The "cut" is cheaper when excluding the parent
 					//  -> only include the leaf in the correspondence
-					correspondences.push_back(this->extractCorrespondence(c, std::vector<index>(1, it - subtreeSizes.cbegin())));
+					correspondences.push_back(corrExtractor.extract(std::vector<index>(1, it - subtreeSizes.cbegin())));
 				}
 			} else {
 				// Parent node has more than one child -> ignore parent, only include leaf in the correspondence
-				correspondences.push_back(this->extractCorrespondence(c, std::vector<index>(1, it - subtreeSizes.cbegin())));
+				correspondences.push_back(corrExtractor.extract(std::vector<index>(1, it - subtreeSizes.cbegin())));
 			}
 		} else if (*it == partition2.upperBound()) {
 			// Root node
-			std::vector<count> childrenNo = calculateChildrenNo(c.gomoryHuParent);
+			std::vector<count> childrenNo = this->calculateChildrenNo(c.gomoryHuParent);
 			if (childrenNo[it - subtreeSizes.cbegin()] == 0) {
 				// The root node is the only node (only one partition)
 				//  -> search for correspondence with this one node
-				correspondences.push_back(this->extractCorrespondence(c, std::vector<index>(1, it - subtreeSizes.cbegin())));
+				correspondences.push_back(corrExtractor.extract(std::vector<index>(1, it - subtreeSizes.cbegin())));
 			} else if (childrenNo[it - subtreeSizes.cbegin()] == 1) {
 				// Root node only has one child, there is a distinct cut separating it from all other nodes
 				index child;
@@ -290,16 +300,16 @@ TimestepData::Timestep LeafExpansion::analyseStep(
 						std::vector<count> parts;
 						parts.push_back(it - subtreeSizes.cbegin());
 						parts.push_back(child);
-						correspondences.push_back(this->extractCorrespondence(c, parts));
+						correspondences.push_back(corrExtractor.extract(parts));
 					} else {
 						// The "cut" is cheaper excluding the child
 						//  -> only include root node in correspondence
-						correspondences.push_back(this->extractCorrespondence(c, std::vector<index>(1, it - subtreeSizes.cbegin())));
+						correspondences.push_back(corrExtractor.extract(std::vector<index>(1, it - subtreeSizes.cbegin())));
 					}
 				} else {
 					// Child has no more than one child, there is no single "cut"
 					//  -> only include root node in correspondence
-					correspondences.push_back(this->extractCorrespondence(c, std::vector<index>(1, it - subtreeSizes.cbegin())));
+					correspondences.push_back(corrExtractor.extract(std::vector<index>(1, it - subtreeSizes.cbegin())));
 				}
 			// } else {
 			// 	// Ignore as there is no single "cut" using the root
@@ -310,22 +320,15 @@ TimestepData::Timestep LeafExpansion::analyseStep(
 	return timestep;
 }
 
-TimestepData::Correspondence LeafExpansion::extractCorrespondence(Correspondences& c, const std::vector<index>& parts) const {
-	TimestepData::Correspondence correspondence = {parts, std::vector<index>(0)};
+std::vector<count> LeafExpansion::calculateChildrenNo(const std::vector<index>& parents) const {
+	std::vector<count> childrenNo(parents.size(), 0);
 
-	for (index i = 0; i < c.cardPartition2; ++i) {
-		count sum = 0;
-
-		for (index part : parts) {
-			sum += c.distributions.at(part).at(i);
-			// sum += c.distributions[part][i];
-		}
-
-		if (2 * sum > c.cardinalityOfCluster2[i])
-			correspondence.pPrime.push_back(i);
+	for (auto it = parents.cbegin(); it != parents.cend(); ++it) {
+		if (*it < parents.size())
+			++childrenNo[*it];
 	}
 
-	return correspondence;
+	return childrenNo;
 }
 
 DCGOwnershipExtractor::DCGOwnershipExtractor(
@@ -340,7 +343,7 @@ DCGOwnershipExtractor::DCGOwnershipExtractor(
 std::vector<DCGTimestepData::Ownership> DCGOwnershipExtractor::extract(
 	const Partition& partition
 ) const {
-	return this->extract(partition, partition.subsetSizes());
+	return this->extract(partition, partitionSubsetSizes(partition));
 }
 
 std::vector<DCGTimestepData::Ownership> DCGOwnershipExtractor::extract(
@@ -360,10 +363,20 @@ std::vector<DCGTimestepData::Ownership> DCGOwnershipExtractor::extract(
 			++partCounters[this->subclusterToPart[subcluster]];
 		}
 
-		auto partIt = std::max_element(partCounters.cbegin(), partCounters.cend());
+
+		auto largestPartIt = std::max_element(partCounters.begin(), partCounters.end());
+		count largestPartSize = *largestPartIt;
+
+		*largestPartIt = 0;
+		auto scndLargestPartIt = std::max_element(partCounters.cbegin(), partCounters.cend());
+
+		double ownershipMargin = static_cast<double>(largestPartSize - *scndLargestPartIt)
+			/ static_cast<double>(2 * subsetSizes[i]);
+
 		ownership[i] = {
-			static_cast<index>(partIt - partCounters.cbegin()),
-			static_cast<double>(*partIt) / subsetSizes[i]
+			static_cast<index>(largestPartIt - partCounters.cbegin()),
+			static_cast<double>(largestPartSize) / subsetSizes[i],
+			ownershipMargin
 		};
 	}
 
@@ -418,197 +431,242 @@ DCGTimestepData::Timestep DCGLeafExpansion::analyseStep(
 	};
 }
 
-
-void DotOutputer::aggregate(std::ostream& stream) {
-	stream << Strings::digraph << Strings::opCurly << Strings::rankdirLR;
-
-	this->writeTimesteps(stream);
-
-	this->writeNodes(stream);
-
-	this->writeEdges(stream);
-
-	stream << Strings::clCurly;
+SmallestMutual::SmallestMutual(Correspondences& c)
+: c(c),
+	parents(c.gomoryHuParent),
+	weights(c.cutWithGomoryHuParent),
+	graph(GHGraph::build(c.gomoryHuParent, c.cutWithGomoryHuParent)),
+	partSets(c.gomoryHuParent.size(), 0)
+{
 }
 
-void DotOutputer::setData(TimestepData& data) {
-	this->data = &data;
+
+std::vector<HT::Result> SmallestMutual::run() {
+	this->weightIndices = this->indexSortWeight();
+
+	HT::Result rootResult = this->createRootResult();
+
+	HT::ResultSet<count> resultSet = this->processTree(0, rootResult);
+	// HT::ResultSet<count> resultSet = this->processTree(0, HT::Result());
+
+	if (resultSet.results.size() < 1
+		|| resultSet.results.front().p.size() < this->graph.getSize()
+	)
+		// Don't return rootResult
+		return resultSet.results;
+	else
+		return {};
 }
 
-void DotOutputer::aggregateToFile(const char* filename) {
-	std::ofstream file(filename);
+std::vector<index> SmallestMutual::indexSortWeight() const {
+	std::vector<index> weightIndices(this->graph.getSize(), 0);
 
-	this->aggregate(file);
+	std::iota(weightIndices.begin(), weightIndices.end(), 0);
 
-	file.close();
+	std::sort(weightIndices.begin(), weightIndices.end(),
+		[this](int i, int j) {
+			return this->weights[i] < this->weights[j];
+		}
+	);
+
+	return weightIndices;
 }
 
-void DotOutputer::writeTimesteps(std::ostream& stream) const {
-	// Write timestep order
-	stream << Strings::opCurly;
+HT::Result SmallestMutual::createRootResult() const {
+	std::vector<index> p(this->graph.getSize());
 
-	for (count i = 0; i < this->data->getTimesteps().size(); ++i) {
-		if (i != 0)
-			stream << Strings::arrow;
-		stream << i + 1;
-	}
-	stream << Strings::semicolon;
+	HT::Result result{
+		std::vector<index>(this->graph.getSize())
+	};
 
-	stream << Strings::clCurly;
+	std::iota(result.p.begin(), result.p.end(), 0);
+
+	this->calculatePPrime(result);
+
+	return result;
 }
 
-void DotOutputer::writeNodes(std::ostream& stream) const {
-	// Write nodes
-	for (auto ts = this->data->cbegin(); ts != this->data->cend(); ++ts) {
-		// Enable subgraph clusters with the next line
-		// stream << "subgraph cluster" << ts - this->data->cbegin() + 1 << Strings::opCurly;
-		stream << Strings::opCurly;
+count SmallestMutual::bfsExpand(index from, index expandInto, std::vector<index>& nodes) {
+	count outerWeight = 0;
+	index ownSet = this->partSets[from];
 
-		stream << Strings::rankSame;
+	nodes.clear();
 
-		// Shapes are drawn with their size (:= square area) proportional to the size of the cluster
-		//  A cluster of mean size is drawn with width=0.75 and height=0.5 (the default dot uses for
-		//  nodes). The width / height proportion is kept constant for all nodes at 0.75/0.5 = 3/2.
-		count sum = std::accumulate(ts->partitionSizes.cbegin(), ts->partitionSizes.cend(), 0);
-		double mean = static_cast<double>(sum) / static_cast<double>(ts->partitionSizes.size());
-		double coeff = 1.0 / (4.0 * mean);
+	std::deque<index> queue;
+	queue.push_back(from);
 
-		count timestep = ts - this->data->cbegin() + 1;
-		stream << timestep << Strings::opBracket << Strings::shapePlaintext << Strings::clBracket << Strings::semicolon;
+	while (!queue.empty()) {
+		auto neighbours = this->graph.neighbours(queue.front());
 
-		for (auto it = ts->partitionSizes.cbegin(); it != ts->partitionSizes.cend(); ++it) {
-			stream << "p" << Strings::underscore << timestep << Strings::underscore << it - ts->partitionSizes.cbegin();
-
-			double height = std::sqrt(coeff * (*it));
-			stream << Strings::opBracket << Strings::shapeSquare << Strings::comma;
-			stream << Strings::labelEquals << it - ts->partitionSizes.cbegin() << Strings::comma;
-			stream << Strings::widthEquals << 1.25 * height << Strings::comma;
-			stream << Strings::heightEquals << height << Strings::clBracket;
-
-			stream << Strings::semicolon;
+		for (GHGraph::Edge edge : neighbours) {
+			if (partSets[edge.b] == expandInto) {
+				queue.push_back(edge.b);
+				this->partSets[edge.b] = ownSet;
+			} else if (partSets[edge.b] != ownSet) {
+				outerWeight += edge.weight;
+			}
 		}
 
-		stream << Strings::clCurly;
+		nodes.push_back(queue.front());
+		queue.pop_front();
+	}
+
+	return outerWeight;
+}
+
+HT::ResultSet<count> SmallestMutual::processTree(index setIndex, const HT::Result parent) {
+	for (auto it = this->weightIndices.cbegin(); it != this->weightIndices.cend() - 1; ++it) {
+		if (this->partSets[*it] != setIndex || this->partSets[this->parents[*it]] != setIndex)
+			continue;
+
+		// Copy partSets to be able to revert the split
+		std::vector<index> previousPartSets(this->partSets);
+
+		index parentSetIndex = this->partSets[*it];
+
+		// Assign parts a and b of edge (a -> b) new set indices
+		this->partSets[*it] = ++this->maxSetIndex;
+		this->partSets[this->parents[*it]] = ++this->maxSetIndex;
+
+		HT::Result resultA = this->buildResult(*it, parentSetIndex);
+		HT::Result resultB = this->buildInverseResult(this->parents[*it], parentSetIndex,
+			resultA, parent.pPrime);
+
+		bool isMutualA = this->isMutual(resultA);
+		bool isMutualB = this->isMutual(resultB);
+
+		HT::ResultSet<count> treeA, treeB;
+
+		if (isMutualA)
+			treeA = this->processTree(
+				this->partSets[*it],
+				resultA
+			);
+
+		if (isMutualB)
+			treeB = this->processTree(
+				this->partSets[this->parents[*it]],
+				resultB
+			);
+
+		if (isMutualA && isMutualB) {
+			HT::ResultSet<count> combined = {
+				0,
+				std::vector<HT::Result>(treeA.results)
+			};
+			combined.results.insert(
+				combined.results.cend(),
+				treeB.results.cbegin(),
+				treeB.results.cend()
+			);
+
+			return combined;
+		} else if (isMutualA)
+			return treeA;
+		else if (isMutualB)
+			return treeB;
+		else
+			this->partSets.swap(previousPartSets);
+	}
+
+	return HT::ResultSet<count>{
+		0,
+		{parent}
+	};
+}
+
+HT::Result SmallestMutual::buildResult(index l, index parentSetIndex) {
+	HT::Result result;
+
+	this->bfsExpand(l, parentSetIndex, result.p);
+
+	this->calculatePPrime(result);
+
+	return result;
+}
+
+HT::Result SmallestMutual::buildInverseResult(
+	index l,
+	index parentSetIndex,
+	const HT::Result& other,
+	const std::vector<index>& superSet
+) {
+	HT::Result result;
+
+	this->bfsExpand(l, parentSetIndex, result.p);
+
+	this->calculateInversePPrime(result, superSet, other.pPrime);
+
+	return result;
+}
+
+
+void SmallestMutual::calculatePPrime(HT::Result& result) const {
+	for (index i = 0; i < this->c.cardPartition2; ++i) {
+		count sum = 0;
+
+		for (index part : result.p) {
+			sum += this->c.distributions[part][i];
+		}
+
+		if (2 * sum > this->c.cardinalityOfCluster2[i])
+			result.pPrime.push_back(i);
+		// Maybe in pPrime
+		// else if (2 * sum == this->c.cardinalityOfCluster2[i])
 	}
 }
 
-void DotOutputer::writeEdges(std::ostream& stream) const {
-	// Write edges
-	for (auto ts = this->data->cbegin() + 1; ts != this->data->cend(); ++ts) {
-		count timestep = ts - this->data->cbegin() + 1;
+void SmallestMutual::calculateInversePPrime(
+	HT::Result& result,
+	const std::vector<index>& superSet,
+	const std::vector<index>& other
+) const {
+	std::set<index> all(superSet.cbegin(), superSet.cend());
 
-		for (auto corr = ts->correspondences.cbegin(); corr != ts->correspondences.cend(); ++corr) {
-			stream << Strings::opCurly;
+	for (auto e : other) {
+		all.erase(all.find(e));
+	}
 
-			for (auto pIt = corr->p.cbegin(); pIt != corr->p.cend(); ++pIt) {
-				stream << "p" << Strings::underscore << timestep - 1 << Strings::underscore << *pIt << Strings::semicolon;
-			}
+	std::copy(all.cbegin(), all.cend(), std::back_inserter(result.pPrime));
+}
 
-			stream << Strings::clCurly << Strings::arrow << Strings::opCurly;
+bool SmallestMutual::isMutual(const HT::Result& result) const {
+	std::set<index> pSet;
+	std::set<index> pSetMaybe;
 
-			for (auto pPrimeIt = corr->pPrime.cbegin(); pPrimeIt != corr->pPrime.cend(); ++pPrimeIt) {
-				stream << "p" << Strings::underscore << timestep << Strings::underscore << *pPrimeIt << Strings::semicolon;
-			}
+	for (index i = 0; i < this->c.cardPartition1; ++i) {
+		count sum = 0;
 
-			stream << Strings::clCurly;
+		for (index part : result.pPrime) {
+			sum += this->c.distributions[i][part];
+		}
+
+		if (2 * sum > this->c.cardinalityOfCluster1[i])
+			pSet.insert(i);
+		else if (2 * sum == this->c.cardinalityOfCluster1[i])
+			pSetMaybe.insert(i);
+	}
+
+	if (result.p.size() < pSet.size()
+		|| result.p.size() > pSet.size() + pSetMaybe.size()
+	)
+		return false;
+
+	count maybeCount = result.p.size() - pSet.size();
+
+	for (index part : result.p) {
+		if (pSet.count(part) != 1) {
+			if (pSetMaybe.count(part) == 1)
+				--maybeCount;
+			else
+				return false;
 		}
 	}
-}
 
-void DCGDotOutputer::aggregate(std::ostream& stream) {
-	// Propagate the palette, that is a base hue value for each part
-	this->palette = std::vector<int16_t>(this->data->getNoOfParts());
-	// Use 360 degree hue spectrum with wrap-around to find colours
-	double increment = 360.0 / static_cast<double>(this->data->getNoOfParts());
+	if (maybeCount != 0)
+		return false;
 
-	double runningHue = 0.0;
-	for (auto it = this->palette.begin(); it != this->palette.end(); ++it) {
-		*it = static_cast<int16_t>(runningHue);
-		runningHue += increment;
-	}
-
-	this->DotOutputer::aggregate(stream);
-}
-
-void DCGDotOutputer::setData(DCGTimestepData& data) {
-	this->data = &data;
-}
-
-void DCGDotOutputer::writeTimesteps(std::ostream& stream) const {
-	// Write timestep order
-	stream << Strings::opCurly;
-
-	for (count i = 0; i < this->data->getTimesteps().size(); ++i) {
-		if (i != 0)
-			stream << Strings::arrow;
-		stream << i + 1;
-	}
-	stream << Strings::semicolon;
-
-	stream << Strings::clCurly;
-}
-
-void DCGDotOutputer::writeNodes(std::ostream& stream) const {
-	// Write nodes
-	for (auto ts = this->data->cbegin(); ts != this->data->cend(); ++ts) {
-		// Enable subgraph clusters with the next line
-		// stream << "subgraph cluster" << ts - this->data->cbegin() + 1 << Strings::opCurly;
-		stream << Strings::opCurly;
-
-		stream << Strings::rankSame;
-
-		// Shapes are drawn with their size (:= square area) proportional to the size of the cluster
-		//  A cluster of mean size is drawn with width=0.75 and height=0.5 (the default dot uses for
-		//  nodes). The width / height proportion is kept constant for all nodes at 0.75/0.5 = 3/2.
-		count sum = std::accumulate(ts->partitionSizes.cbegin(), ts->partitionSizes.cend(), 0);
-		double mean = static_cast<double>(sum) / static_cast<double>(ts->partitionSizes.size());
-		double coeff = 1.0 / (4.0 * mean);
-
-		count timestep = ts - this->data->cbegin() + 1;
-		stream << timestep << Strings::opBracket << Strings::shapePlaintext << Strings::clBracket << Strings::semicolon;
-
-		for (auto it = ts->partitionSizes.cbegin(); it != ts->partitionSizes.cend(); ++it) {
-			stream << "p" << Strings::underscore << timestep << Strings::underscore << it - ts->partitionSizes.cbegin();
-
-			double height = std::sqrt(coeff * (*it));
-			stream << Strings::opBracket << Strings::shapeSquare << Strings::comma;
-			stream << Strings::labelEquals << it - ts->partitionSizes.cbegin() << Strings::comma;
-			stream << Strings::widthEquals << 1.25 * height << Strings::comma;
-			stream << Strings::heightEquals << height << Strings::comma;
-			stream << Strings::fillcolorEquals << Strings::quote;
-			stream << static_cast<double>(this->palette[ts->ownership[it - ts->partitionSizes.cbegin()].largestPart]) / 360.0 << Strings::comma;
-			stream << 0.75 * 2 * (ts->ownership[it - ts->partitionSizes.cbegin()].stake - 0.5) + 0.1 << Strings::comma << 1.0;
-			stream << Strings::quote << Strings::comma;
-			stream << Strings::styleFilled << Strings::clBracket;
-
-			stream << Strings::semicolon;
-		}
-
-		stream << Strings::clCurly;
-	}
-}
-
-void DCGDotOutputer::writeEdges(std::ostream& stream) const {
-	// Write edges
-	for (auto ts = this->data->cbegin() + 1; ts != this->data->cend(); ++ts) {
-		count timestep = ts - this->data->cbegin() + 1;
-
-		for (auto corr = ts->correspondences.cbegin(); corr != ts->correspondences.cend(); ++corr) {
-			stream << Strings::opCurly;
-
-			for (auto pIt = corr->p.cbegin(); pIt != corr->p.cend(); ++pIt) {
-				stream << "p" << Strings::underscore << timestep - 1 << Strings::underscore << *pIt << Strings::semicolon;
-			}
-
-			stream << Strings::clCurly << Strings::arrow << Strings::opCurly;
-
-			for (auto pPrimeIt = corr->pPrime.cbegin(); pPrimeIt != corr->pPrime.cend(); ++pPrimeIt) {
-				stream << "p" << Strings::underscore << timestep << Strings::underscore << *pPrimeIt << Strings::semicolon;
-			}
-
-			stream << Strings::clCurly;
-		}
-	}
+	return true;
 }
 
 } /* namespace NetworKit */
