@@ -617,7 +617,7 @@ void DynamicCommunitiesGenerator::performIndividualMoves() {
 		// Early exit if alpha_v is 1 and therefore individuals don't move
 		return;
 
-	for (auto individual : this->individuals) {
+	for (DynamicCommunitiesGenerator::Individual& individual : this->individuals) {
 		double x = Aux::Random::real();
 
 		if (x <= this->parameters.alpha_v) {
