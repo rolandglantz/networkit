@@ -286,8 +286,7 @@ AffinitiesGenerator::Affinities AffinitiesGenerator::halfHalf(count k, double w,
 	double intraEdgeWeight = 1;
 	double interEdgeWeight = w;
 
-	parts.clear();
-	parts.resize(2, std::vector<index>());
+	parts.assign(2, std::vector<index>());
 
 	for (index i = 1; i <= k / 2; ++i) {
 		parts[0].push_back(i);
@@ -578,7 +577,8 @@ void DynamicCommunitiesGenerator::performSplit() {
 		auto subtreeSizesV = subtreeSizes(*clusterIt, this->subclusters);
 
 		for (auto it = clusterIt->cbegin() + 1; it != clusterIt->cend(); ++it) {
-			double inverseDifference = static_cast<double>(1) / abs(static_cast<int64_t>(subtreeSizesV.front())
+			double inverseDifference =
+				static_cast<double>(1) / abs(static_cast<int64_t>(subtreeSizesV.front())
 				- 2 * static_cast<int64_t>(subtreeSizesV[it - clusterIt->cbegin()]));
 			cumulativeInverseDifference.push_back(
 				cumulativeInverseDifference.back() + inverseDifference
@@ -613,68 +613,35 @@ void DynamicCommunitiesGenerator::performSplit() {
 }
 
 void DynamicCommunitiesGenerator::performIndividualMoves() {
-	count noOfMoves = this->parameters.p_move_v * this->parameters.n;
+	if (this->parameters.alpha_v == 1)
+		// Early exit if alpha_v is 1 and therefore individuals don't move
+		return;
 
-	std::vector<index> individuals, subcluster;
-	individuals.reserve(noOfMoves);
-	subcluster.reserve(noOfMoves);
+	for (auto individual : this->individuals) {
+		double x = Aux::Random::real();
 
-	std::mt19937_64& urng = Aux::Random::getURNG();
-	std::uniform_int_distribution<uint64_t> dist{1, this->parameters.n};
+		if (x <= this->parameters.alpha_v) {
+			if (individual.subcluster != individual.homeSubcluster)
+				// Not in home subcluster
+				// Move to home subcluster
+				individual.subcluster = individual.homeSubcluster;
+		} else {
+			if (individual.subcluster == individual.homeSubcluster) {
+				// In home subcluster
+				// Move to random other subcluster
+				index q = Aux::Random::integer(1, this->subclusters.size() - 2);
 
-	index i;
+				if (q >= individual.homeSubcluster)
+					++q;
 
-	for (; individuals.size() < noOfMoves;) {
-		i = dist(urng);
-
-		// Ignore, if the individual is already marked to be moved
-		if (this->individuals[i].subcluster == 0)
-			continue;
-
-		individuals.push_back(i);
-		subcluster.push_back(this->individuals[i].subcluster);
-		this->individuals[i].subcluster = 0;
-	}
-
-	for (i = 0; i < noOfMoves; ++i) {
-		this->moveIndividual(individuals[i], subcluster[i]);
+				individual.subcluster = q;
+			}
+		}
 	}
 
 	#ifdef DYNAMICCOMMUNITIESGENERATOR_VALIDATE
 	(GeneratorValidator(*this)).validate();
 	#endif
-}
-
-void DynamicCommunitiesGenerator::moveIndividual(index v, index subcluster) {
-	index q;
-
-	if (subcluster == this->individuals[v].homeSubcluster) {
-		// In home subcluster
-		q = Aux::Random::integer(1, this->subclusters.size() - 2);
-
-		if (q >= this->individuals[v].homeSubcluster)
-			++q;
-	} else {
-		// Not in home subcluster
-		double p = Aux::Random::probability();
-
-		if (p < this->parameters.alpha) {
-			// Decided to move to home subcluster
-			q = this->individuals[v].homeSubcluster;
-		} else {
-			// Decided to move to arbitrary subcluster, but not the home subcluster
-			q = Aux::Random::integer(1, this->subclusters.size() - 3);
-
-			if (q >= this->individuals[v].homeSubcluster)
-				// Skip the home subcluster, if necessary
-				++q;
-			if (q >= subcluster)
-				// Skip the current subcluster, if necessary
-				++q;
-		}
-	}
-
-	this->individuals[v].subcluster = q;
 }
 
 void DynamicCommunitiesGenerator::addSubclusterEdge(index i, index j) {
@@ -702,13 +669,14 @@ void DynamicCommunitiesGenerator::addSubclusterEdge(index i, index j) {
 		unusedClusterIndex = temp;
 	}
 
-	// TODO
-	// Line too long
 	for(; *iClusterIt != i; ++iClusterIt) {
 		mergedCluster.push_back(*iClusterIt);
 		this->subclusters[*iClusterIt].cluster = newClusterIndex;
 	}
-	for (; iClusterIt != iCluster.cend() && this->subclusters[*iClusterIt].postOrder <= iPostOrder; ++iClusterIt) {
+	for (;
+		iClusterIt != iCluster.cend() && this->subclusters[*iClusterIt].postOrder <= iPostOrder;
+		++iClusterIt
+	) {
 		mergedCluster.push_back(*iClusterIt);
 		this->subclusters[*iClusterIt].cluster = newClusterIndex;
 	}
@@ -777,7 +745,6 @@ void DynamicCommunitiesGenerator::removeSubclusterEdge(index i, index j) {
 			postOrderBound = this->subclusters[*it].postOrder + 1;
 	}
 
-	// TODO more elegantly
 	// Iterate over items in the i subtree
 	for (; it != oldCluster.cend() && this->subclusters[*it].postOrder <= iPostOrder; ++it) {
 		newChildCluster.push_back(*it);
@@ -870,14 +837,18 @@ std::vector<std::vector<index>> DynamicCommunitiesGenerator::extractPartialTrees
 			//  partial tree.
 			partialTree.push_back(*it);
 			postOrderDelta = postOrderBound;
-		} else if (this->subclusters[*it].postOrder > this->subclusters[partialTree.front()].postOrder) {
+		} else if (
+			this->subclusters[*it].postOrder > this->subclusters[partialTree.front()].postOrder
+		) {
 			// Reached end of current partial tree.
 
-			while (this->subclusters[*it].postOrder > this->subclusters[partialTree.front()].postOrder) {
+			while (
+				this->subclusters[*it].postOrder > this->subclusters[partialTree.front()].postOrder
+			) {
 
 				// Amend the postOrder of the partial tree's root node.
-				//  Simply set to the tree size - 1 , i.e. last post order occuring in the tree instead
-				//  of using postOrderDelta
+				//  Simply set to the tree size - 1 , i.e. last post order occuring in the tree
+				//  instead of using postOrderDelta
 				this->subclusters[partialTree.front()].postOrder = partialTree.size() - 1;
 
 				// Restore postOrderDelta, add the size of the just extracted partial tree.
@@ -992,7 +963,8 @@ void GeneratorValidator::validateClusterNum() {
 }
 
 void GeneratorValidator::validateSubclustersLength() {
-	const std::vector<DynamicCommunitiesGenerator::Subcluster> subclusters = this->state.getSubclusters();
+	const std::vector<DynamicCommunitiesGenerator::Subcluster> subclusters =
+		this->state.getSubclusters();
 
 	Aux::enforce(subclusters.size() - 1 == this->state.getParameters().affinities.getN(),
 		"Invalid length of subclusters");

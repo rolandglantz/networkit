@@ -26,6 +26,7 @@
 #define DOUBLE_MARGIN_OF_ERROR 1.0 / 32.0
 
 #include <vector>
+#include <stdexcept>
 
 #include "../Globals.h"
 #include "../structures/Partition.h"
@@ -76,7 +77,9 @@ public:
 
 	Index indexFromIterator(const_iterator it) const {
 		if (this->cbegin() > it || this->cend() < it) {
-			throw("SymmetricMatrix::indexFromIterator: Iterator seems to be invalid");
+			throw(std::domain_error(
+				"SymmetricMatrix::indexFromIterator: Iterator seems to be invalid"
+			));
 		}
 
 		return this->indexFromPosition(it - this->cbegin());
@@ -111,11 +114,17 @@ protected:
 
 	index calcBufIndex(index i, index j) const {
 		if (i < 1 || j < 1)
-			throw("SymmetricMatrix: Invalid index (<1)");
+			throw(std::domain_error(
+				"SymmetricMatrix: Invalid index (<1)"
+			));
 		if (i == j)
-			throw("SymmetricMatrix: Accessing invalid index: i == j");
+			throw(std::domain_error(
+				"SymmetricMatrix: Accessing invalid index: i == j"
+			));
 		if (i > n || j > n)
-			throw("SymmetricMatrix: Invalid index (>n)");
+			throw(std::domain_error(
+				"SymmetricMatrix: Invalid index (>n)"
+			));
 
 		if (j < i) {
 			index tmp = j;
@@ -180,8 +189,7 @@ public:
 		count l;
 
 		count n;
-		double alpha;
-		double p_move_v;
+		double alpha_v;
 	};
 
 	struct Individual {
@@ -194,7 +202,9 @@ public:
 		index cluster;
 
 		// TODO
-		// Switch to a size approach, significantly simplifying the implementation
+		//  Switch to a size approach, significantly simplifying the implementation
+		// count size;
+		// index preOrder;
 		index postOrder;
 	};
 
@@ -229,7 +239,6 @@ protected:
 	void rejoinPartialTrees(std::vector<std::vector<index>> partialTrees);
 
 	void performIndividualMoves();
-	void moveIndividual(index v, index subcluster);
 };
 
 /**
@@ -240,7 +249,7 @@ public:
 	GeneratorState(const DynamicCommunitiesGenerator& generator) : generator(generator) {};
 	~GeneratorState() = default;
 
-	inline DynamicCommunitiesGenerator::Parameters getParameters() {
+	inline DynamicCommunitiesGenerator::Parameters getParameters() const {
 		return this->generator.parameters;
 	}
 
