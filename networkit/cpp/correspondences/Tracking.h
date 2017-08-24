@@ -771,7 +771,9 @@ protected:
 					std::vector<Result>(this->resultNodes[node.children[0]].resultSet.results)
 				};
 				combined.results.insert(
-					combined.results.cend(),
+					combined.results.end(),
+					// Breaking from c++11 to c++14:
+					// combined.results.cend(),
 					this->resultNodes[node.children[1]].resultSet.results.cbegin(),
 					this->resultNodes[node.children[1]].resultSet.results.cend()
 				);

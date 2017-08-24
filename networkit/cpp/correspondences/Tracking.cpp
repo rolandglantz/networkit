@@ -561,7 +561,9 @@ HT::ResultSet<count> SmallestMutual::processTree(index setIndex, const HT::Resul
 				std::vector<HT::Result>(treeA.results)
 			};
 			combined.results.insert(
-				combined.results.cend(),
+				combined.results.end(),
+				// Breaking from c++11 to c++14:
+				// combined.results.cend(),
 				treeB.results.cbegin(),
 				treeB.results.cend()
 			);
