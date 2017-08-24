@@ -139,7 +139,9 @@ TimestepData::Correspondence  CorrespondencesExtractor::extract(const std::vecto
 		std::vector<index>(0),
 
 		std::vector<index>(parts.size(), 0),
-		std::vector<index>(0)
+		std::vector<index>(0),
+
+		std::vector<std::vector<count>>(0)
 	};
 
 	count intersection = 0;
@@ -160,6 +162,10 @@ TimestepData::Correspondence  CorrespondencesExtractor::extract(const std::vecto
 			for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
 				correspondence.pSizes[it - parts.cbegin()]
 					+= this->correspondences.distributions[*it][i];
+
+				correspondence.pToPPrimeSizes[it - parts.cbegin()].push_back(
+					this->correspondences.distributions[*it][i]
+				);
 			}
 
 			intersection += sum;

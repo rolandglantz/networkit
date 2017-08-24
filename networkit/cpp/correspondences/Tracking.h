@@ -321,7 +321,7 @@ public:
 		std::vector<count> pSizes;
 		std::vector<count> pPrimeSizes;
 
-		// std::vector<std::vector<count>> pToPPrimeSizes;
+		std::vector<std::vector<count>> pToPPrimeSizes;
 
 		count intersectionSize;
 		count unionSize;
@@ -380,6 +380,8 @@ public:
 
 	// 	std::vector<count> pSizes;
 	// 	std::vector<count> pPrimeSizes;
+
+	// std::vector<std::vector<count>> pToPPrimeSizes;
 
 	// 	count intersectionSize;
 	// 	count unionSize;
@@ -914,6 +916,9 @@ protected:
 		std::vector<index> pSizes(p.size(), 0);
 		std::vector<index> pPrimeSizes(pPrime.size(), 0);
 
+		std::vector<std::vector<count>> pToPPrimeSizes(p.size(),
+			std::vector<count>(pPrime.size()));
+
 		count intersection = 0;
 		count sizePPrime = 0;
 		count sizeP = 0;
@@ -924,6 +929,9 @@ protected:
 
 				pSizes[pIt - p.cbegin()] += c.distributions[*pIt][*pPrimeIt];
 				pPrimeSizes[pPrimeIt - pPrime.cbegin()] += c.distributions[*pIt][*pPrimeIt];
+
+				pToPPrimeSizes[pIt - p.cbegin()][pPrimeIt - pPrime.cbegin()] =
+					c.distributions[*pIt][*pPrimeIt];
 			}
 
 			sizePPrime += c.cardinalityOfCluster2[*pPrimeIt];
@@ -938,6 +946,7 @@ protected:
 			pPrime,
 			pSizes,
 			pPrimeSizes,
+			pToPPrimeSizes,
 			intersection,
 			sizeP + sizePPrime - intersection
 		};
