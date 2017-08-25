@@ -15,6 +15,7 @@
 #include <fstream>
 #include <iterator>
 #include <ostream>
+#include <queue>
 #include <vector>
 
 #include "../Globals.h"
@@ -199,10 +200,18 @@ public:
 			return EdgeIterator(this->graph, this->node, false);
 		}
 	protected:
-
 		const GHGraph& graph;
 		index node;
 	};
+
+	/**
+	 * Constructs an empty GHGraph.
+	 *
+	 * The static build() function is needed to properly build the GHGraph structure.
+	 */
+	GHGraph(const std::vector<index>& parents, const std::vector<count>& weights)
+		: size(0), parents(parents), weights(weights) {}
+	~GHGraph() = default;
 
 	static GHGraph build(const std::vector<index>& parents, const std::vector<count>& weights);
 
@@ -535,12 +544,22 @@ namespace HT {
 		std::vector<index> p;
 		std::vector<index> pPrime;
 		count cost;
+
+		bool operator<(const HT::Result& rhs) const { return this->cost < rhs.cost; }
+		bool operator>(const HT::Result& rhs) const { return this->cost > rhs.cost; }
 	};
 
 	template <typename QualityType>
 	struct ResultSet {
 		QualityType quality;
 		std::vector<Result> results;
+
+		bool operator<(const HT::ResultSet<QualityType>& rhs) const {
+			return this->quality < rhs.quality;
+		}
+		bool operator>(const HT::ResultSet<QualityType>& rhs) const {
+			return this->quality > rhs.quality;
+		}
 	};
 
 	template <typename QualityType>
@@ -669,7 +688,7 @@ protected:
 
 	std::deque<index> backtrackQueue;
 
-	std::vector<index> indexSortWeight() {
+	std::vector<index> indexSortWeight() const {
 		std::vector<index> weightIndices(this->graph.getSize(), 0);
 
 		std::iota(weightIndices.begin(), weightIndices.end(), 0);
@@ -1127,7 +1146,111 @@ public:
 	}
 };
 
+/**
+ * CheapestSetsGenerator returns all sets contained in the decomposition hierarchy of the gomory hu
+ * tree in ascending cost order.
+ *
+ * It is implemented as a forward iterator.
+ */
+class CheapestSetsGenerator {
+public:
+	CheapestSetsGenerator(Correspondences& c);
+	CheapestSetsGenerator(Correspondences& c, std::vector<index> partSets, count rootSet, index cost);
+	/**
+	 * Constructs an ended CheapestSetsGenerator.
+	 */
+	CheapestSetsGenerator(Correspondences& c, bool);
+	~CheapestSetsGenerator() = default;
 
+	inline std::vector<index>* operator*() {
+		if (!this->reachedEnd && this->resultQueue.empty())
+			this->advance();
+
+		return &this->resultQueue.top()->p;
+	}
+
+	inline CheapestSetsGenerator& operator++() {
+		if (this->ended())
+			return *this;
+
+		if (this->resultQueue.empty())
+			this->advance();
+
+		if (!this->resultQueue.empty())
+			this->resultQueue.pop();
+
+		return *this;
+	}
+
+
+	inline bool ended() const {
+		return this->reachedEnd && this->resultQueue.empty();
+	}
+
+	inline CheapestSetsGenerator operator++(int) {
+		CheapestSetsGenerator tmp(*this);
+		++*this;
+		return tmp;
+	}
+
+	friend inline bool operator==(const CheapestSetsGenerator& lhs, const CheapestSetsGenerator& rhs) {
+		if (lhs.ended() && rhs.ended())
+			return true;
+		else
+			return false;
+	}
+
+	friend inline bool operator!=(const CheapestSetsGenerator& lhs, const CheapestSetsGenerator& rhs) {
+		return !(lhs == rhs);
+	}
+protected:
+	bool reachedEnd = false;
+
+	Correspondences& c;
+
+	const std::vector<index>& parents;
+	const std::vector<count>& weights;
+
+	std::vector<index> weightIndices;
+	std::vector<index>::const_iterator weightIt;
+	std::vector<index>::const_iterator weightItEnd;
+
+	std::vector<index> partSets;
+	index minSetIndex;
+
+	std::vector<HT::Result> sets;
+	std::priority_queue<HT::Result*> resultQueue;
+
+	GHGraph graph;
+
+	std::vector<index> indexSortWeight() const;
+
+	HT::Result createRootResult(index rootSet, count cost) const;
+
+	/**
+	 * Advance advances the generator, i.e. explores the tree until the next cheapest result is
+	 * available or the tree is exhausted.
+	 *
+	 * That means when advance returns either reachedEnd is true or resultQueue is non-empty.
+	 */
+	void advance();
+
+	HT::Result& propagateResult(index l, index parentSetIndex);
+
+	count bfsExpand(index from, index expandInto, std::vector<index>& nodes);
+
+	/**
+	 * Returns a reference to the result from this->set with the passed in set index.
+	 *
+	 * Enlarges this->sets if necessary.
+	 */
+	HT::Result& refResultSet(int set);
+};
+
+/**
+ * SmallestMutual is a correspondences exploration algorithm extracting the cheapest smallest
+ * mutual correspondences from the gomory hu tree.
+ */
 class SmallestMutual {
 public:
 	SmallestMutual(Correspondences& c);

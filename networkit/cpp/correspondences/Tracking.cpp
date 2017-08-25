@@ -437,6 +437,138 @@ DCGTimestepData::Timestep DCGLeafExpansion::analyseStep(
 	};
 }
 
+CheapestSetsGenerator::CheapestSetsGenerator(Correspondences& c, bool)
+ : reachedEnd(true),
+	c(c),
+	parents(c.gomoryHuParent),
+	weights(c.cutWithGomoryHuParent),
+	graph(c.gomoryHuParent, c.cutWithGomoryHuParent) {}
+
+CheapestSetsGenerator::CheapestSetsGenerator(Correspondences& c)
+	: CheapestSetsGenerator(c, std::vector<index>(c.gomoryHuParent.size(), 0), 0, 0) {}
+
+CheapestSetsGenerator::CheapestSetsGenerator(
+	Correspondences& c, std::vector<index> partSets, index rootSet, count cost
+) : c(c),
+	parents(c.gomoryHuParent),
+	weights(c.cutWithGomoryHuParent),
+	partSets(partSets),
+	graph(GHGraph::build(c.gomoryHuParent, c.cutWithGomoryHuParent))
+{
+	this->weightIndices = this->indexSortWeight();
+	this->weightIt = this->weightIndices.cbegin();
+	this->weightItEnd = this->weightIndices.cend();
+
+	this->minSetIndex = *std::max_element(
+		this->partSets.cbegin(),
+		this->partSets.cend()
+	);
+
+	this->refResultSet(0) = this->createRootResult(rootSet, cost);
+}
+
+std::vector<index> CheapestSetsGenerator::indexSortWeight() const {
+	std::vector<index> weightIndices(this->graph.getSize(), 0);
+
+	std::iota(weightIndices.begin(), weightIndices.end(), 0);
+
+	std::sort(weightIndices.begin(), weightIndices.end(),
+		[this](int i, int j) {
+			return this->weights[i] < this->weights[j];
+		}
+	);
+
+	return weightIndices;
+}
+
+HT::Result CheapestSetsGenerator::createRootResult(index rootSet, count cost) const {
+	std::vector<index> nodes;
+
+	for (auto it = this->partSets.cbegin(); it != this->partSets.cend(); ++it) {
+		if (*it == rootSet)
+			nodes.push_back(it - this->partSets.cbegin());
+	}
+
+	return {
+		nodes,
+		std::vector<index>(0),
+		cost
+	};
+}
+
+void CheapestSetsGenerator::advance() {
+	while (this->weightIt != this->weightItEnd) {
+		index parentSetIndex = this->partSets[*this->weightIt];
+
+		this->partSets[*this->weightIt] = this->minSetIndex + this->sets.size();
+		this->partSets[this->parents[*this->weightIt]] = this->minSetIndex + this->sets.size() + 1;
+
+		this->propagateResult(*this->weightIt, parentSetIndex);
+		this->propagateResult(this->parents[*this->weightIt], parentSetIndex);
+
+		++this->weightIt;
+
+		if (this->weightIt != this->weightItEnd
+			&& this->resultQueue.top()->cost < this->weights[*this->weightIt]
+		)
+			// Early exit possible: All not yet explored results have a cost of at least the
+			//  upcoming weight. The cost of the result on top of the result queue is already
+			//  cheaper and can thus be yielded next.
+			return;
+	}
+
+	this->reachedEnd = true;
+}
+
+HT::Result& CheapestSetsGenerator::propagateResult(index l, index parentSetIndex) {
+	index setIndex = this->partSets[l];
+
+	HT::Result& result = this->refResultSet(setIndex);
+	result.cost = this->bfsExpand(l, parentSetIndex, result.p);
+
+	this->resultQueue.push(&result);
+
+	return result;
+}
+
+count CheapestSetsGenerator::bfsExpand(index from, index expandInto, std::vector<index>& nodes) {
+	count outerWeight = 0;
+	index ownSet = this->partSets[from];
+
+	nodes.clear();
+
+	std::deque<index> queue;
+	queue.push_back(from);
+
+	while (!queue.empty()) {
+		auto neighbours = this->graph.neighbours(queue.front());
+
+		for (GHGraph::Edge edge : neighbours) {
+			if (partSets[edge.b] == expandInto) {
+				queue.push_back(edge.b);
+				this->partSets[edge.b] = ownSet;
+			} else if (partSets[edge.b] != ownSet) {
+				outerWeight += edge.weight;
+			}
+		}
+
+		nodes.push_back(queue.front());
+		queue.pop_front();
+	}
+
+	return outerWeight;
+}
+
+HT::Result& CheapestSetsGenerator::refResultSet(int set) {
+	index vectorIndex = set - this->minSetIndex;
+
+	if (vectorIndex >= this->sets.size())
+		this->sets.resize(vectorIndex + 1, {});
+
+	return this->sets[vectorIndex];
+}
+
+
 SmallestMutual::SmallestMutual(Correspondences& c)
 : c(c),
 	parents(c.gomoryHuParent),
