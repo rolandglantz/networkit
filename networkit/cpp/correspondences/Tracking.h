@@ -8,7 +8,10 @@
 #ifndef TRACKING_H_
 #define TRACKING_H_
 
-// #define TOPDOWN_BACKTRACK_DEBUG
+// #define DEBUG_TOPDOWN_BACKTRACK
+// #define DEBUG_WRITE_GHT
+// #define DEBUG_WRITE_HDT
+// #define DEBUG_WRITE_PARTITION
 
 #include <algorithm>
 #include <deque>
@@ -616,6 +619,7 @@ public:
 	~TopDown() = default;
 
 	std::vector<Result> run() {
+		#ifdef DEBUG_WRITE_HDT
 		// DEBUG
 		// Count timesteps
 		static count timestepIndex = 1;
@@ -623,6 +627,7 @@ public:
 
 		std::ofstream file(std::to_string(timestepIndex).append("_hdt.dot").c_str());
 		file << "digraph{";
+		#endif /* DEBUG_WRITE_HDT */
 
 
 		// Sort gomory hu tree indices by ascending weight
@@ -631,8 +636,10 @@ public:
 		// Create root node of result set tree
 		Node& rootNode = this->createRootNode();
 
+		#ifdef DEBUG_WRITE_HDT
 		// DEBUG
 		file << "0[shape=box,label=\"c = 0\"];";
+		#endif /* DEBUG_WRITE_HDT */
 
 		for (auto it = weightIndices.cbegin(); it != weightIndices.cend() - 1; ++it) {
 			// Iterate over weights in ascending order, ignore root's edge (non-existent)
@@ -651,6 +658,7 @@ public:
 			Node& nodeA = this->propagateNode(*it, parentSetIndex);
 			Node& nodeB = this->propagateNode(this->parents[*it], parentSetIndex);
 
+			#ifdef DEBUG_WRITE_HDT
 			// DEBUG
 			file << parentSetIndex << "->" << this->partSets[*it] << ";";
 			file << parentSetIndex << "->" << this->partSets[this->parents[*it]] << ";";
@@ -662,12 +670,15 @@ public:
 				file << this->partSets[this->parents[*it]] << "[label=\"c = " << nodeB.resultSet.results.front().cost << "\"]";
 			else
 				file << this->partSets[this->parents[*it]] << "[shape=box,label=\"c = " << nodeB.resultSet.results.front().cost << "\"]";
+			#endif /* DEBUG_WRITE_HDT */
 		}
 
 		this->backtrack();
 
+		#ifdef DEBUG_WRITE_HDT
 		// DEBUG
 		file << "}";
+		#endif /* DEBUG_WRITE_HDT */
 
 		return rootNode.resultSet.results;
 	}
@@ -768,19 +779,19 @@ protected:
 	}
 
 	void backtrack() {
-		#ifdef TOPDOWN_BACKTRACK_DEBUG
+		#ifdef DEBUG_TOPDOWN_BACKTRACK
 		std::cout << "backtrack()" << std::endl;
-		#endif /* TOPDOWN_BACKTRACK_DEBUG */
+		#endif /* DEBUG_TOPDOWN_BACKTRACK */
 		while (!this->backtrackQueue.empty()) {
 			Node& node = this->resultNodes[this->backtrackQueue.front()];
 			this->backtrackQueue.pop_front();
 
 			if (node.children.size() == 0) {
 				// Use own ResultSet
-				#ifdef TOPDOWN_BACKTRACK_DEBUG
+				#ifdef DEBUG_TOPDOWN_BACKTRACK
 				std::cout << "    Leaf, using own" << std::endl;
 				std::cout << "     " << node.resultSet.results.front().p.size() << " : " << node.resultSet.results.front().pPrime.size() << std::endl;
-				#endif /* TOPDOWN_BACKTRACK_DEBUG */
+				#endif /* DEBUG_TOPDOWN_BACKTRACK */
 			} else {
 				ResultSet combined = {
 					this->objective.combineQuality(
@@ -801,15 +812,15 @@ protected:
 					&& this->objective.replaceCombined(combined, node.resultSet))
 				{
 					// Replace combined ResultSets of children by own ResultSet
-					#ifdef TOPDOWN_BACKTRACK_DEBUG
+					#ifdef DEBUG_TOPDOWN_BACKTRACK
 					std::cout << "    Replaced by own" << std::endl;
 					std::cout << "     " << node.resultSet.results.front().p.size() << " : " << node.resultSet.results.front().pPrime.size() << std::endl;
-					#endif /* TOPDOWN_BACKTRACK_DEBUG */
+					#endif /* DEBUG_TOPDOWN_BACKTRACK */
 				} else {
-					#ifdef TOPDOWN_BACKTRACK_DEBUG
+					#ifdef DEBUG_TOPDOWN_BACKTRACK
 					std::cout << "    Combining children" << std::endl;
 					std::cout << "     |.| = " << combined.results.size() << std::endl;
-					#endif /* TOPDOWN_BACKTRACK_DEBUG */
+					#endif /* DEBUG_TOPDOWN_BACKTRACK */
 					node.resultSet = std::move(combined);
 				}
 			}
@@ -823,9 +834,9 @@ protected:
 				this->backtrackQueue.push_back(node.parent);
 		}
 
-		#ifdef TOPDOWN_BACKTRACK_DEBUG
+		#ifdef DEBUG_TOPDOWN_BACKTRACK
 		std::cout << "/" << std::endl;
-		#endif /* TOPDOWN_BACKTRACK_DEBUG */
+		#endif /* DEBUG_TOPDOWN_BACKTRACK */
 	}
 
 	count bfsExpand(index from, index expandInto, std::vector<index>& nodes) {
@@ -894,6 +905,7 @@ public:
 		Correspondences c;
 		c.detect(2, partition1, partition2);
 
+		#ifdef DEBUG_WRITE_GHT
 		// DEBUG
 		// Count timesteps
 		static count timestepIndex = 1;
@@ -915,6 +927,7 @@ public:
 		}
 		file << "}";
 		file.close();
+		#endif /* DEBUG_WRITE_GHT */
 
 
 		Algorithm algorithm(c);

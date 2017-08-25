@@ -184,6 +184,7 @@ TimestepData::Correspondence  CorrespondencesExtractor::extract(const std::vecto
 }
 
 TimestepData::Timestep LeafExpansion::analyseFirst(const Partition& partition) const {
+	#ifdef DEBUG_WRITE_PARTITION
 	// DEBUG
 	// Write out the partition
 	std::ofstream partFile("1_parts.tsv");
@@ -195,6 +196,7 @@ TimestepData::Timestep LeafExpansion::analyseFirst(const Partition& partition) c
 		partFile << std::endl;
 	}
 	partFile.close();
+	#endif /* DEBUG_WRITE_PARTITION */
 
 	return {
 		partitionSubsetSizes(partition),
@@ -217,12 +219,14 @@ TimestepData::Timestep LeafExpansion::analyseStep(
 
 	std::vector<count> subtreeSizes = calculateSubtreeSizes(c.gomoryHuParent);
 
-
+	#if defined(DEBUG_WRITE_PARTITION) || defined (DEBUG_WRITE_GHT)
 	// DEBUG
 	// Count timesteps
 	static count timestepIndex = 1;
 	++timestepIndex;
+	#endif /*defined(DEBUG_WRITE_PARTITION) || defined (DEBUG_WRITE_GHT) */
 
+	#ifdef DEBUG_WRITE_PARTITION
 	// DEBUG
 	// Write out the partition
 	std::ofstream partFile(std::to_string(timestepIndex).append("_parts.tsv").c_str());
@@ -234,7 +238,9 @@ TimestepData::Timestep LeafExpansion::analyseStep(
 		partFile << std::endl;
 	}
 	partFile.close();
+	#endif /* DEBUG_WRITE_PARTITION */
 
+	#ifdef DEBUG_WRITE_GHT
 	// DEBUG
 	// Write out gomory hu tree
 	std::ofstream file(std::to_string(timestepIndex).append("_ght.dot").c_str());
@@ -251,6 +257,7 @@ TimestepData::Timestep LeafExpansion::analyseStep(
 	}
 	file << Strings::clCurly;
 	file.close();
+	#endif /* DEBUG_WRITE_GHT */
 
 
 	// Analyse using leaf expansion
