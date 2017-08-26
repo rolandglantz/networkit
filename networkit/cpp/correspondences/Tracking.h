@@ -816,7 +816,7 @@ protected:
 				};
 				combined.results.insert(
 					combined.results.end(),
-					// Breaking from c++11 to c++14:
+					// Breaking in c++11, changed in c++14:
 					// combined.results.cend(),
 					this->resultNodes[node.children[1]].resultSet.results.cbegin(),
 					this->resultNodes[node.children[1]].resultSet.results.cend()
@@ -1259,7 +1259,7 @@ protected:
 
 	std::vector<index> indexSortWeight() const;
 
-	HT::Result& createRootResult(index rootSet);
+	void createRootResults(index rootSet);
 
 	/**
 	 * Advance advances the generator, i.e. explores the tree until the next cheapest result is
@@ -1360,11 +1360,13 @@ protected:
 	);
 
 	void calculatePPrime(HT::Result& result) const;
-	void calculateInversePPrime(
-		HT::Result& result,
-		const std::vector<index>& superSet,
-		const std::vector<index>& other
-	) const;
+	/**
+	 * Calculates pPrime from p; includes all "maybe" (zero-impact) optimal partners in pPrime.
+	 *
+	 * Useful if as many parts as possible should be used.
+	 */
+	void calculatePPrime(HT::Result& result, int) const;
+
 	bool isMutual(const HT::Result& result) const;
 };
 

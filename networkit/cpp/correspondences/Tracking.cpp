@@ -472,7 +472,7 @@ CheapestSetsGenerator::CheapestSetsGenerator(
 		this->partSets.cend()
 	) + 1;
 
-	this->createRootResult(rootSet);
+	this->createRootResults(rootSet);
 
 	this->advance();
 }
@@ -491,53 +491,40 @@ std::vector<index> CheapestSetsGenerator::indexSortWeight() const {
 	return weightIndices;
 }
 
-HT::Result& CheapestSetsGenerator::createRootResult(index rootSet) {
-	HT::Result& rootResult = this->refResultSet(this->minSetIndex);
-
-	// First node encountered in rootSet
-	index l = static_cast<index>(-1);
-
-	for (auto it = this->partSets.cbegin(); it != this->partSets.cend(); ++it) {
-		if (*it == rootSet)
-			l = it - this->partSets.cbegin();
+void CheapestSetsGenerator::createRootResults(index rootSet) {
+	for (auto it = this->partSets.begin(); it != this->partSets.end(); ++it) {
+		if (*it == rootSet) {
+			// Found rootSet node, creating result
+			*it = this->minSetIndex + this->sets.size();
+			this->propagateResult(it - this->partSets.begin(), rootSet);
+		}
 	}
-	if (l == static_cast<index>(-1))
-		// No node encountered
-		return rootResult;
-
-	this->partSets[l] = this->minSetIndex;
-	rootResult.cost = this->bfsExpand(l, rootSet, rootResult.p);
-
-	return rootResult;
 }
 
 void CheapestSetsGenerator::advance() {
-	while (this->weightIt != this->weightItEnd) {
-		index parentSetIndex = this->partSets[*this->weightIt];
+	for (; this->weightIt != this->weightItEnd; ++this->weightIt) {
 
-		if (parentSetIndex != this->partSets[this->parents[*this->weightIt]]
-			|| parentSetIndex < this->minSetIndex
-		) {
-			// Skip the edge, if it is not part of the generator's set
-			++this->weightIt;
-			continue;
-		}
-
-		this->partSets[*this->weightIt] = this->minSetIndex + this->sets.size();
-		this->partSets[this->parents[*this->weightIt]] = this->minSetIndex + this->sets.size() + 1;
-
-		this->propagateResult(*this->weightIt, parentSetIndex);
-		this->propagateResult(this->parents[*this->weightIt], parentSetIndex);
-
-		++this->weightIt;
-
-		if (this->weightIt != this->weightItEnd
+		if (!this->resultQueue.empty()
 			&& this->refResultSet(this->resultQueue.top()).cost < this->weights[*this->weightIt]
 		)
 			// Early exit possible: All not yet explored results have a cost of at least the
 			//  upcoming weight. The cost of the result on top of the result queue is already
 			//  cheaper and can thus be yielded next.
 			return;
+
+		index parentSetIndex = this->partSets[*this->weightIt];
+
+		if (parentSetIndex != this->partSets[this->parents[*this->weightIt]]
+			|| parentSetIndex < this->minSetIndex
+		)
+			// Skip the edge, if it is not part of the generator's set
+			continue;
+
+		this->partSets[*this->weightIt] = this->minSetIndex + this->sets.size();
+		this->partSets[this->parents[*this->weightIt]] = this->minSetIndex + this->sets.size() + 1;
+
+		this->propagateResult(*this->weightIt, parentSetIndex);
+		this->propagateResult(this->parents[*this->weightIt], parentSetIndex);
 	}
 
 	this->reachedEnd = true;
@@ -625,13 +612,16 @@ HT::ResultSet<count> SmallestMutual::exploreTree(
 	CheapestSetsGenerator g(this->c, this->partSets, setIndex);
 
 	for (; !g.ended(); ++g) {
+		if (g->p.size() == self.p.size())
+			// Skip "self" result
+			continue;
 
 		this->calculatePPrime(*g);
 
 		const HT::Result& resultA = *g;
 
 		if (this->isMutual(resultA)) {
-			index resultASetIndex = ++maxSetIndex;
+			index resultASetIndex = ++this->maxSetIndex;
 			for (auto part : resultA.p) {
 				this->partSets[part] = resultASetIndex;
 			}
@@ -650,7 +640,7 @@ HT::ResultSet<count> SmallestMutual::exploreTree(
 				};
 				combined.results.insert(
 					combined.results.end(),
-					// Breaking from c++11 to c++14:
+					// Breaking in c++11, changed in c++14:
 					// combined.results.cend(),
 					treeB.results.cbegin(),
 					treeB.results.cend()
@@ -889,7 +879,7 @@ HT::ResultSet<count> RecursiveMutual::processTree(index setIndex, const HT::Resu
 			};
 			combined.results.insert(
 				combined.results.end(),
-				// Breaking from c++11 to c++14:
+				// Breaking in c++11, changed in c++14:
 				// combined.results.cend(),
 				treeB.results.cbegin(),
 				treeB.results.cend()
@@ -930,7 +920,7 @@ HT::Result RecursiveMutual::buildInverseResult(
 
 	this->bfsExpand(l, parentSetIndex, result.p);
 
-	this->calculateInversePPrime(result, superSet, other.pPrime);
+	this->calculatePPrime(result, 0);
 
 	return result;
 }
@@ -951,18 +941,17 @@ void RecursiveMutual::calculatePPrime(HT::Result& result) const {
 	}
 }
 
-void RecursiveMutual::calculateInversePPrime(
-	HT::Result& result,
-	const std::vector<index>& superSet,
-	const std::vector<index>& other
-) const {
-	std::set<index> all(superSet.cbegin(), superSet.cend());
+void RecursiveMutual::calculatePPrime(HT::Result& result, int) const {
+	for (index i = 0; i < this->c.cardPartition2; ++i) {
+		count sum = 0;
 
-	for (auto e : other) {
-		all.erase(all.find(e));
+		for (index part : result.p) {
+			sum += this->c.distributions[part][i];
+		}
+
+		if (2 * sum >= this->c.cardinalityOfCluster2[i])
+			result.pPrime.push_back(i);
 	}
-
-	std::copy(all.cbegin(), all.cend(), std::back_inserter(result.pPrime));
 }
 
 bool RecursiveMutual::isMutual(const HT::Result& result) const {
