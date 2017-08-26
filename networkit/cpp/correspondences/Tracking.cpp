@@ -372,10 +372,10 @@ std::vector<DCGTimestepData::Ownership> DCGOwnershipExtractor::extract(
 
 		auto memberSet = partition.getMembers(i);
 		for (index member : memberSet) {
-			index subcluster = this->generator.getIndividualSubluster(member);
+			index subcluster = this->generator.getIndividualSubcluster(member + 1);
+
 			++partCounters[this->subclusterToPart[subcluster]];
 		}
-
 
 		auto largestPartIt = std::max_element(partCounters.begin(), partCounters.end());
 		count largestPartSize = *largestPartIt;
@@ -387,7 +387,7 @@ std::vector<DCGTimestepData::Ownership> DCGOwnershipExtractor::extract(
 			/ static_cast<double>(2 * subsetSizes[i]);
 
 		ownership[i] = {
-			static_cast<index>(largestPartIt - partCounters.cbegin()),
+			static_cast<index>(largestPartIt - partCounters.begin()),
 			static_cast<double>(largestPartSize) / subsetSizes[i],
 			ownershipMargin
 		};

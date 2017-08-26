@@ -297,7 +297,7 @@ public:
 		return this->generator.individuals.at(v);
 	}
 
-	inline index getIndividualSubluster(index v) const {
+	inline index getIndividualSubcluster(index v) const {
 		return this->generator.individuals.at(v).subcluster;
 	}
 
