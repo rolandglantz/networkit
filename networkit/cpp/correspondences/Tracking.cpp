@@ -579,20 +579,20 @@ HT::Result& CheapestSetsGenerator::refResultSet(int set) {
 }
 
 
-SmallestMutual::SmallestMutual(Correspondences& c)
+CheapestMutual::CheapestMutual(Correspondences& c)
 : c(c),
 	partSets(c.gomoryHuParent.size(), 0)
 {
 }
 
 
-std::vector<HT::Result> SmallestMutual::run() {
+std::vector<HT::Result> CheapestMutual::run() {
 	HT::Result rootResult = this->createRootResult();
 
 	return this->exploreTree(0, rootResult, false).results;
 }
 
-HT::Result SmallestMutual::createRootResult() const {
+HT::Result CheapestMutual::createRootResult() const {
 	HT::Result result{
 		std::vector<index>(this->c.gomoryHuParent.size()),
 		{},
@@ -606,7 +606,7 @@ HT::Result SmallestMutual::createRootResult() const {
 	return result;
 }
 
-HT::ResultSet<count> SmallestMutual::exploreTree(
+HT::ResultSet<count> CheapestMutual::exploreTree(
 	index setIndex, const HT::Result& self, bool isSelfMutual
 ) {
 	CheapestSetsGenerator g(this->c, this->partSets, setIndex);
@@ -664,7 +664,7 @@ HT::ResultSet<count> SmallestMutual::exploreTree(
 		};
 }
 
-HT::Result SmallestMutual::buildInverseResult(
+HT::Result CheapestMutual::buildInverseResult(
 	const HT::Result& other,
 	const std::vector<index>& superSet
 ) {
@@ -686,7 +686,7 @@ HT::Result SmallestMutual::buildInverseResult(
 	return result;
 }
 
-void SmallestMutual::calculatePPrime(HT::Result& result) const {
+void CheapestMutual::calculatePPrime(HT::Result& result) const {
 	for (index i = 0; i < this->c.cardPartition2; ++i) {
 		count sum = 0;
 
@@ -701,7 +701,7 @@ void SmallestMutual::calculatePPrime(HT::Result& result) const {
 	}
 }
 
-void SmallestMutual::calculatePPrime(HT::Result& result, int) const {
+void CheapestMutual::calculatePPrime(HT::Result& result, int) const {
 	for (index i = 0; i < this->c.cardPartition2; ++i) {
 		count sum = 0;
 
@@ -714,7 +714,7 @@ void SmallestMutual::calculatePPrime(HT::Result& result, int) const {
 	}
 }
 
-bool SmallestMutual::isMutual(const HT::Result& result) const {
+bool CheapestMutual::isMutual(const HT::Result& result) const {
 	std::set<index> pSet;
 	std::set<index> pSetMaybe;
 

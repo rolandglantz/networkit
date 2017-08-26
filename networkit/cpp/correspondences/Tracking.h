@@ -1282,13 +1282,13 @@ protected:
 };
 
 /**
- * SmallestMutual is a correspondences exploration algorithm extracting the cheapest smallest
+ * CheapestMutual is a correspondences exploration algorithm extracting the cheapest smallest
  * mutual correspondences from the gomory hu tree.
  */
-class SmallestMutual {
+class CheapestMutual {
 public:
-	SmallestMutual(Correspondences& c);
-	~SmallestMutual() = default;
+	CheapestMutual(Correspondences& c);
+	~CheapestMutual() = default;
 
 	std::vector<HT::Result> run();
 protected:
