@@ -224,7 +224,7 @@ TimestepData::Timestep LeafExpansion::analyseStep(
 	// Count timesteps
 	static count timestepIndex = 1;
 	++timestepIndex;
-	#endif /*defined(DEBUG_WRITE_PARTITION) || defined (DEBUG_WRITE_GHT) */
+	#endif /* defined(DEBUG_WRITE_PARTITION) || defined (DEBUG_WRITE_GHT) */
 
 	#ifdef DEBUG_WRITE_PARTITION
 	// DEBUG
@@ -452,26 +452,29 @@ CheapestSetsGenerator::CheapestSetsGenerator(Correspondences& c, bool)
 	graph(c.gomoryHuParent, c.cutWithGomoryHuParent) {}
 
 CheapestSetsGenerator::CheapestSetsGenerator(Correspondences& c)
-	: CheapestSetsGenerator(c, std::vector<index>(c.gomoryHuParent.size(), 0), 0, 0) {}
+	: CheapestSetsGenerator(c, std::vector<index>(c.gomoryHuParent.size(), 0), 0) {}
 
 CheapestSetsGenerator::CheapestSetsGenerator(
-	Correspondences& c, std::vector<index> partSets, index rootSet, count cost
+	Correspondences& c, std::vector<index> partSets, index rootSet
 ) : c(c),
 	parents(c.gomoryHuParent),
 	weights(c.cutWithGomoryHuParent),
 	partSets(partSets),
 	graph(GHGraph::build(c.gomoryHuParent, c.cutWithGomoryHuParent))
 {
+
 	this->weightIndices = this->indexSortWeight();
 	this->weightIt = this->weightIndices.cbegin();
-	this->weightItEnd = this->weightIndices.cend();
+	this->weightItEnd = this->weightIndices.cend() - 1;
 
 	this->minSetIndex = *std::max_element(
 		this->partSets.cbegin(),
 		this->partSets.cend()
-	);
+	) + 1;
 
-	this->refResultSet(0) = this->createRootResult(rootSet, cost);
+	this->createRootResult(rootSet);
+
+	this->advance();
 }
 
 std::vector<index> CheapestSetsGenerator::indexSortWeight() const {
@@ -488,24 +491,37 @@ std::vector<index> CheapestSetsGenerator::indexSortWeight() const {
 	return weightIndices;
 }
 
-HT::Result CheapestSetsGenerator::createRootResult(index rootSet, count cost) const {
-	std::vector<index> nodes;
+HT::Result& CheapestSetsGenerator::createRootResult(index rootSet) {
+	HT::Result& rootResult = this->refResultSet(this->minSetIndex);
+
+	// First node encountered in rootSet
+	index l = static_cast<index>(-1);
 
 	for (auto it = this->partSets.cbegin(); it != this->partSets.cend(); ++it) {
 		if (*it == rootSet)
-			nodes.push_back(it - this->partSets.cbegin());
+			l = it - this->partSets.cbegin();
 	}
+	if (l == static_cast<index>(-1))
+		// No node encountered
+		return rootResult;
 
-	return {
-		nodes,
-		std::vector<index>(0),
-		cost
-	};
+	this->partSets[l] = this->minSetIndex;
+	rootResult.cost = this->bfsExpand(l, rootSet, rootResult.p);
+
+	return rootResult;
 }
 
 void CheapestSetsGenerator::advance() {
 	while (this->weightIt != this->weightItEnd) {
 		index parentSetIndex = this->partSets[*this->weightIt];
+
+		if (parentSetIndex != this->partSets[this->parents[*this->weightIt]]
+			|| parentSetIndex < this->minSetIndex
+		) {
+			// Skip the edge, if it is not part of the generator's set
+			++this->weightIt;
+			continue;
+		}
 
 		this->partSets[*this->weightIt] = this->minSetIndex + this->sets.size();
 		this->partSets[this->parents[*this->weightIt]] = this->minSetIndex + this->sets.size() + 1;
@@ -516,7 +532,7 @@ void CheapestSetsGenerator::advance() {
 		++this->weightIt;
 
 		if (this->weightIt != this->weightItEnd
-			&& this->resultQueue.top()->cost < this->weights[*this->weightIt]
+			&& this->refResultSet(this->resultQueue.top()).cost < this->weights[*this->weightIt]
 		)
 			// Early exit possible: All not yet explored results have a cost of at least the
 			//  upcoming weight. The cost of the result on top of the result queue is already
@@ -533,7 +549,7 @@ HT::Result& CheapestSetsGenerator::propagateResult(index l, index parentSetIndex
 	HT::Result& result = this->refResultSet(setIndex);
 	result.cost = this->bfsExpand(l, parentSetIndex, result.p);
 
-	this->resultQueue.push(&result);
+	this->resultQueue.push(setIndex);
 
 	return result;
 }
@@ -578,50 +594,22 @@ HT::Result& CheapestSetsGenerator::refResultSet(int set) {
 
 SmallestMutual::SmallestMutual(Correspondences& c)
 : c(c),
-	parents(c.gomoryHuParent),
-	weights(c.cutWithGomoryHuParent),
-	graph(GHGraph::build(c.gomoryHuParent, c.cutWithGomoryHuParent)),
 	partSets(c.gomoryHuParent.size(), 0)
 {
 }
 
 
 std::vector<HT::Result> SmallestMutual::run() {
-	this->weightIndices = this->indexSortWeight();
-
 	HT::Result rootResult = this->createRootResult();
 
-	HT::ResultSet<count> resultSet = this->processTree(0, rootResult);
-	// HT::ResultSet<count> resultSet = this->processTree(0, HT::Result());
-
-	if (resultSet.results.size() < 1
-		|| resultSet.results.front().p.size() < this->graph.getSize()
-	)
-		// Don't return rootResult
-		return resultSet.results;
-	else
-		return {};
-}
-
-std::vector<index> SmallestMutual::indexSortWeight() const {
-	std::vector<index> weightIndices(this->graph.getSize(), 0);
-
-	std::iota(weightIndices.begin(), weightIndices.end(), 0);
-
-	std::sort(weightIndices.begin(), weightIndices.end(),
-		[this](int i, int j) {
-			return this->weights[i] < this->weights[j];
-		}
-	);
-
-	return weightIndices;
+	return this->exploreTree(0, rootResult, false).results;
 }
 
 HT::Result SmallestMutual::createRootResult() const {
-	std::vector<index> p(this->graph.getSize());
-
 	HT::Result result{
-		std::vector<index>(this->graph.getSize())
+		std::vector<index>(this->c.gomoryHuParent.size()),
+		{},
+		0
 	};
 
 	std::iota(result.p.begin(), result.p.end(), 0);
@@ -631,122 +619,82 @@ HT::Result SmallestMutual::createRootResult() const {
 	return result;
 }
 
-count SmallestMutual::bfsExpand(index from, index expandInto, std::vector<index>& nodes) {
-	count outerWeight = 0;
-	index ownSet = this->partSets[from];
+HT::ResultSet<count> SmallestMutual::exploreTree(
+	index setIndex, const HT::Result& self, bool isSelfMutual
+) {
+	CheapestSetsGenerator g(this->c, this->partSets, setIndex);
 
-	nodes.clear();
+	for (; !g.ended(); ++g) {
 
-	std::deque<index> queue;
-	queue.push_back(from);
+		this->calculatePPrime(*g);
 
-	while (!queue.empty()) {
-		auto neighbours = this->graph.neighbours(queue.front());
+		const HT::Result& resultA = *g;
 
-		for (GHGraph::Edge edge : neighbours) {
-			if (partSets[edge.b] == expandInto) {
-				queue.push_back(edge.b);
-				this->partSets[edge.b] = ownSet;
-			} else if (partSets[edge.b] != ownSet) {
-				outerWeight += edge.weight;
+		if (this->isMutual(resultA)) {
+			index resultASetIndex = ++maxSetIndex;
+			for (auto part : resultA.p) {
+				this->partSets[part] = resultASetIndex;
 			}
+
+			HT::Result resultB = this->buildInverseResult(resultA, self.p);
+
+			HT::ResultSet<count> treeA, treeB;
+
+			treeA = this->exploreTree(resultASetIndex, resultA, true);
+			treeB = this->exploreTree(setIndex, resultB, this->isMutual(resultB));
+
+			if (!treeB.results.empty()) {
+				HT::ResultSet<count> combined = {
+					0,
+					std::vector<HT::Result>(treeA.results)
+				};
+				combined.results.insert(
+					combined.results.end(),
+					// Breaking from c++11 to c++14:
+					// combined.results.cend(),
+					treeB.results.cbegin(),
+					treeB.results.cend()
+				);
+
+				return combined;
+			} else
+				return treeA;
 		}
-
-		nodes.push_back(queue.front());
-		queue.pop_front();
 	}
 
-	return outerWeight;
-}
-
-HT::ResultSet<count> SmallestMutual::processTree(index setIndex, const HT::Result parent) {
-	for (auto it = this->weightIndices.cbegin(); it != this->weightIndices.cend() - 1; ++it) {
-		if (this->partSets[*it] != setIndex || this->partSets[this->parents[*it]] != setIndex)
-			continue;
-
-		// Copy partSets to be able to revert the split
-		std::vector<index> previousPartSets(this->partSets);
-
-		index parentSetIndex = this->partSets[*it];
-
-		// Assign parts a and b of edge (a -> b) new set indices
-		this->partSets[*it] = ++this->maxSetIndex;
-		this->partSets[this->parents[*it]] = ++this->maxSetIndex;
-
-		HT::Result resultA = this->buildResult(*it, parentSetIndex);
-		HT::Result resultB = this->buildInverseResult(this->parents[*it], parentSetIndex,
-			resultA, parent.pPrime);
-
-		bool isMutualA = this->isMutual(resultA);
-		bool isMutualB = this->isMutual(resultB);
-
-		HT::ResultSet<count> treeA, treeB;
-
-		if (isMutualA)
-			treeA = this->processTree(
-				this->partSets[*it],
-				resultA
-			);
-
-		if (isMutualB)
-			treeB = this->processTree(
-				this->partSets[this->parents[*it]],
-				resultB
-			);
-
-		if (isMutualA && isMutualB) {
-			HT::ResultSet<count> combined = {
-				0,
-				std::vector<HT::Result>(treeA.results)
-			};
-			combined.results.insert(
-				combined.results.end(),
-				// Breaking from c++11 to c++14:
-				// combined.results.cend(),
-				treeB.results.cbegin(),
-				treeB.results.cend()
-			);
-
-			return combined;
-		} else if (isMutualA)
-			return treeA;
-		else if (isMutualB)
-			return treeB;
-		else
-			this->partSets.swap(previousPartSets);
-	}
-
-	return HT::ResultSet<count>{
-		0,
-		{parent}
-	};
-}
-
-HT::Result SmallestMutual::buildResult(index l, index parentSetIndex) {
-	HT::Result result;
-
-	this->bfsExpand(l, parentSetIndex, result.p);
-
-	this->calculatePPrime(result);
-
-	return result;
+	if (isSelfMutual)
+		return HT::ResultSet<count>{
+			0,
+			{self}
+		};
+	else
+		return HT::ResultSet<count>{
+			0,
+			{}
+		};
 }
 
 HT::Result SmallestMutual::buildInverseResult(
-	index l,
-	index parentSetIndex,
 	const HT::Result& other,
 	const std::vector<index>& superSet
 ) {
+	std::set<index> pSet;
+
+	for (auto part : other.p) {
+		pSet.insert(part);
+	}
+
 	HT::Result result;
 
-	this->bfsExpand(l, parentSetIndex, result.p);
+	for (auto part : superSet) {
+		if (pSet.count(part) != 1)
+			result.p.push_back(part);
+	}
 
-	this->calculateInversePPrime(result, superSet, other.pPrime);
+	this->calculatePPrime(result, 0);
 
 	return result;
 }
-
 
 void SmallestMutual::calculatePPrime(HT::Result& result) const {
 	for (index i = 0; i < this->c.cardPartition2; ++i) {
@@ -763,18 +711,17 @@ void SmallestMutual::calculatePPrime(HT::Result& result) const {
 	}
 }
 
-void SmallestMutual::calculateInversePPrime(
-	HT::Result& result,
-	const std::vector<index>& superSet,
-	const std::vector<index>& other
-) const {
-	std::set<index> all(superSet.cbegin(), superSet.cend());
+void SmallestMutual::calculatePPrime(HT::Result& result, int) const {
+	for (index i = 0; i < this->c.cardPartition2; ++i) {
+		count sum = 0;
 
-	for (auto e : other) {
-		all.erase(all.find(e));
+		for (index part : result.p) {
+			sum += this->c.distributions[part][i];
+		}
+
+		if (2 * sum >= this->c.cardinalityOfCluster2[i])
+			result.pPrime.push_back(i);
 	}
-
-	std::copy(all.cbegin(), all.cend(), std::back_inserter(result.pPrime));
 }
 
 bool SmallestMutual::isMutual(const HT::Result& result) const {

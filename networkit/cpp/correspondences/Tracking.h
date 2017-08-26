@@ -284,6 +284,10 @@ public:
 		this->lastPartition = partition;
 	}
 
+	virtual Data& getData() {
+		return this->data;
+	}
+
 	virtual Outputer& getOutputer() {
 		return this->outputer;
 	}
@@ -322,6 +326,11 @@ public:
 	/**
 	 * Represents a correspondence between the partition of a timestep t and t+1.
 	 * p comprises the involved parts' indices for t, pPrime those for t+1.
+	 * pSizes contains for all parts in p the size of the union of the part with the union of
+	 * pPrime, pPrimeSizes contains the size of the union of the part with the union of p for all
+	 * parts in pPrime. The indices correspond to the indices of parts in p and pPrime.
+	 * pToPPrimeSizes contains the number of elements in the intersection of each part in p and
+	 * each part in pPrime: pToPPrimeSizes[i][j] = p[i] \cap pPrime[j].
 	 * intersectionSize is the number of elements in the intersection of the unions of p and
 	 * pPrime, while unionSize is the number of elements in the union of the unions of p and
 	 * pPrime.
@@ -381,6 +390,11 @@ public:
 	/**
 	 * Represents a correspondence between the partition of a timestep t and t+1.
 	 * p comprises the involved parts' indices for t, pPrime those for t+1.
+	 * pSizes contains for all parts in p the size of the union of the part with the union of
+	 * pPrime, pPrimeSizes contains the size of the union of the part with the union of p for all
+	 * parts in pPrime. The indices correspond to the indices of parts in p and pPrime.
+	 * pToPPrimeSizes contains the number of elements in the intersection of each part in p and
+	 * each part in pPrime: pToPPrimeSizes[i][j] = p[i] \cap pPrime[j].
 	 * intersectionSize is the number of elements in the intersection of the unions of p and
 	 * pPrime, while unionSize is the number of elements in the union of the unions of p and
 	 * pPrime.
@@ -1161,25 +1175,29 @@ public:
 
 /**
  * CheapestSetsGenerator returns all sets contained in the decomposition hierarchy of the gomory hu
- * tree in ascending cost order.
+ * tree in ascending cost order. The root result (the entire tree) is omitted.
  *
  * It is implemented as a forward iterator.
  */
 class CheapestSetsGenerator {
 public:
 	CheapestSetsGenerator(Correspondences& c);
-	CheapestSetsGenerator(Correspondences& c, std::vector<index> partSets, count rootSet, index cost);
+	CheapestSetsGenerator(Correspondences& c, std::vector<index> partSets, count rootSet);
 	/**
 	 * Constructs an ended CheapestSetsGenerator.
 	 */
 	CheapestSetsGenerator(Correspondences& c, bool);
 	~CheapestSetsGenerator() = default;
 
-	inline std::vector<index>* operator*() {
+	inline HT::Result& operator*() {
 		if (!this->reachedEnd && this->resultQueue.empty())
 			this->advance();
 
-		return &this->resultQueue.top()->p;
+		return this->refResultSet(this->resultQueue.top());
+	}
+
+	inline HT::Result* operator->() {
+		return &**this;
 	}
 
 	inline CheapestSetsGenerator& operator++() {
@@ -1191,6 +1209,9 @@ public:
 
 		if (!this->resultQueue.empty())
 			this->resultQueue.pop();
+
+		if (this->resultQueue.empty())
+			this->advance();
 
 		return *this;
 	}
@@ -1232,13 +1253,13 @@ protected:
 	index minSetIndex;
 
 	std::vector<HT::Result> sets;
-	std::priority_queue<HT::Result*> resultQueue;
+	std::priority_queue<index> resultQueue;
 
 	GHGraph graph;
 
 	std::vector<index> indexSortWeight() const;
 
-	HT::Result createRootResult(index rootSet, count cost) const;
+	HT::Result& createRootResult(index rootSet);
 
 	/**
 	 * Advance advances the generator, i.e. explores the tree until the next cheapest result is
@@ -1273,38 +1294,29 @@ public:
 protected:
 	Correspondences& c;
 
-	const std::vector<index>& parents;
-	const std::vector<count>& weights;
-
-	GHGraph graph;
-
 	std::vector<index> partSets;
 	index maxSetIndex = 0;
 
-	std::vector<index> weightIndices;
-
-	std::vector<index> indexSortWeight() const;
-
 	HT::Result createRootResult() const;
 
-	count bfsExpand(index from, index expandInto, std::vector<index>& nodes);
+	HT::ResultSet<count> exploreTree(index setIndex, const HT::Result& self, bool isSelfMutual);
 
-	HT::ResultSet<count> processTree(index setIndex, const HT::Result result);
-
-	HT::Result buildResult(index l, index parentSetIndex);
 	HT::Result buildInverseResult(
-		index l,
-		index parentSetIndex,
 		const HT::Result& other,
 		const std::vector<index>& superSet
 	);
 
+	/**
+	 * Calculates pPrime from p.
+	 */
 	void calculatePPrime(HT::Result& result) const;
-	void calculateInversePPrime(
-		HT::Result& result,
-		const std::vector<index>& superSet,
-		const std::vector<index>& other
-	) const;
+	/**
+	 * Calculates pPrime from p; includes all "maybe" (zero-impact) optimal partners in pPrime.
+	 *
+	 * Useful if as many parts as possible should be used.
+	 */
+	void calculatePPrime(HT::Result& result, int) const;
+
 	bool isMutual(const HT::Result& result) const;
 };
 
