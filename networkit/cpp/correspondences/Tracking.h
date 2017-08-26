@@ -1761,6 +1761,93 @@ protected:
 	}
 };
 
+template <class Data, class OwnershipAccessor = typename Data::OwnershipAccessor>
+class EdgeCutEvaluation {
+public:
+	EdgeCutEvaluation() = default;
+	virtual ~EdgeCutEvaluation() = default;
+
+	virtual count evaluate() {
+		if (data == NULL)
+			return 0;
+
+		count noOfParts = OwnershipAccessor::getNoOfParts(*this->data);
+
+		this->partToPartCutSum.assign(noOfParts, std::vector<count>(noOfParts, 0));
+
+		this->cutSum = 0;
+		this->edgeSum = 0;
+		this->cuts = 0;
+		this->edges = 0;
+
+		for (auto ts = this->data->cbegin(); ts != this->data->cend(); ++ts) {
+			++this->timesteps;
+
+			for (auto it = ts->correspondences.cbegin(); it != ts->correspondences.cend(); ++it) {
+				for (auto pIt = it->p.cbegin(); pIt != it->p.cend(); ++pIt) {
+					for (auto pPrimeIt = it->pPrime.cbegin(); pPrimeIt != it->pPrime.cend(); ++pPrimeIt) {
+						if (OwnershipAccessor::owningPart(*(ts - 1), *pIt) != OwnershipAccessor::owningPart(*ts, *pPrimeIt)) {
+							this->cutSum += it->pToPPrimeSizes[pIt - it->p.cbegin()][pPrimeIt - it->pPrime.cbegin()];
+							++this->cuts;
+
+							this->partToPartCutSum[OwnershipAccessor::owningPart(*(ts - 1), *pIt)][OwnershipAccessor::owningPart(*ts, *pPrimeIt)]
+							 	+= it->pToPPrimeSizes[pIt - it->p.cbegin()][pPrimeIt - it->pPrime.cbegin()];
+						}
+
+						this->edgeSum += it->pToPPrimeSizes[pIt - it->p.cbegin()][pPrimeIt - it->pPrime.cbegin()];
+						++this->edges;
+					}
+				}
+			}
+		}
+
+		this->evaluated = true;
+
+		return this->cutSum;
+	}
+
+	virtual inline void setData(Data& data) {
+		this->data = &data;
+		this->evaluated = false;
+	}
+
+	virtual inline count getCutSum() {
+		return this->cutSum;
+	}
+	virtual inline count getEdgeSum() {
+		return this->edgeSum;
+	}
+	virtual inline count getCuts() {
+		return this->cuts;
+	}
+	virtual inline count getEdges() {
+		return this->edges;
+	}
+	virtual inline count getTimesteps() {
+		return this->timesteps;
+	}
+	virtual inline std::vector<std::vector<count>>& getPartToPartCutSum() {
+		return this->partToPartCutSum;
+	}
+	virtual inline count getPartToPartCutSum(index partA, index partB) {
+		return this->partToPartCutSum[partA][partB];
+	}
+protected:
+	Data* data = NULL;
+
+	bool evaluated = false;
+
+	count cutSum;
+	count edgeSum;
+
+	count cuts;
+	count edges;
+
+	count timesteps;
+
+	std::vector<std::vector<count>> partToPartCutSum;
+};
+
 
 } /* namespace NetworKit */
 
