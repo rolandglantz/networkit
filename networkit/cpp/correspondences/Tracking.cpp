@@ -763,4 +763,245 @@ bool SmallestMutual::isMutual(const HT::Result& result) const {
 	return true;
 }
 
+
+RecursiveMutual::RecursiveMutual(Correspondences& c)
+: c(c),
+	parents(c.gomoryHuParent),
+	weights(c.cutWithGomoryHuParent),
+	graph(GHGraph::build(c.gomoryHuParent, c.cutWithGomoryHuParent)),
+	partSets(c.gomoryHuParent.size(), 0)
+{
+}
+
+
+std::vector<HT::Result> RecursiveMutual::run() {
+	this->weightIndices = this->indexSortWeight();
+
+	HT::Result rootResult = this->createRootResult();
+
+	HT::ResultSet<count> resultSet = this->processTree(0, rootResult);
+	// HT::ResultSet<count> resultSet = this->processTree(0, HT::Result());
+
+	if (resultSet.results.size() < 1
+		|| resultSet.results.front().p.size() < this->graph.getSize()
+	)
+		// Don't return rootResult
+		return resultSet.results;
+	else
+		return {};
+}
+
+std::vector<index> RecursiveMutual::indexSortWeight() const {
+	std::vector<index> weightIndices(this->graph.getSize(), 0);
+
+	std::iota(weightIndices.begin(), weightIndices.end(), 0);
+
+	std::sort(weightIndices.begin(), weightIndices.end(),
+		[this](int i, int j) {
+			return this->weights[i] < this->weights[j];
+		}
+	);
+
+	return weightIndices;
+}
+
+HT::Result RecursiveMutual::createRootResult() const {
+	std::vector<index> p(this->graph.getSize());
+
+	HT::Result result{
+		std::vector<index>(this->graph.getSize())
+	};
+
+	std::iota(result.p.begin(), result.p.end(), 0);
+
+	this->calculatePPrime(result);
+
+	return result;
+}
+
+count RecursiveMutual::bfsExpand(index from, index expandInto, std::vector<index>& nodes) {
+	count outerWeight = 0;
+	index ownSet = this->partSets[from];
+
+	nodes.clear();
+
+	std::deque<index> queue;
+	queue.push_back(from);
+
+	while (!queue.empty()) {
+		auto neighbours = this->graph.neighbours(queue.front());
+
+		for (GHGraph::Edge edge : neighbours) {
+			if (partSets[edge.b] == expandInto) {
+				queue.push_back(edge.b);
+				this->partSets[edge.b] = ownSet;
+			} else if (partSets[edge.b] != ownSet) {
+				outerWeight += edge.weight;
+			}
+		}
+
+		nodes.push_back(queue.front());
+		queue.pop_front();
+	}
+
+	return outerWeight;
+}
+
+HT::ResultSet<count> RecursiveMutual::processTree(index setIndex, const HT::Result parent) {
+	for (auto it = this->weightIndices.cbegin(); it != this->weightIndices.cend() - 1; ++it) {
+		if (this->partSets[*it] != setIndex || this->partSets[this->parents[*it]] != setIndex)
+			continue;
+
+		// Copy partSets to be able to revert the split
+		std::vector<index> previousPartSets(this->partSets);
+
+		index parentSetIndex = this->partSets[*it];
+
+		// Assign parts a and b of edge (a -> b) new set indices
+		this->partSets[*it] = ++this->maxSetIndex;
+		this->partSets[this->parents[*it]] = ++this->maxSetIndex;
+
+		HT::Result resultA = this->buildResult(*it, parentSetIndex);
+		HT::Result resultB = this->buildInverseResult(this->parents[*it], parentSetIndex,
+			resultA, parent.pPrime);
+
+		bool isMutualA = this->isMutual(resultA);
+		bool isMutualB = this->isMutual(resultB);
+
+		HT::ResultSet<count> treeA, treeB;
+
+		if (isMutualA)
+			treeA = this->processTree(
+				this->partSets[*it],
+				resultA
+			);
+
+		if (isMutualB)
+			treeB = this->processTree(
+				this->partSets[this->parents[*it]],
+				resultB
+			);
+
+		if (isMutualA && isMutualB) {
+			HT::ResultSet<count> combined = {
+				0,
+				std::vector<HT::Result>(treeA.results)
+			};
+			combined.results.insert(
+				combined.results.end(),
+				// Breaking from c++11 to c++14:
+				// combined.results.cend(),
+				treeB.results.cbegin(),
+				treeB.results.cend()
+			);
+
+			return combined;
+		} else if (isMutualA)
+			return treeA;
+		else if (isMutualB)
+			return treeB;
+		else
+			this->partSets.swap(previousPartSets);
+	}
+
+	return HT::ResultSet<count>{
+		0,
+		{parent}
+	};
+}
+
+HT::Result RecursiveMutual::buildResult(index l, index parentSetIndex) {
+	HT::Result result;
+
+	this->bfsExpand(l, parentSetIndex, result.p);
+
+	this->calculatePPrime(result);
+
+	return result;
+}
+
+HT::Result RecursiveMutual::buildInverseResult(
+	index l,
+	index parentSetIndex,
+	const HT::Result& other,
+	const std::vector<index>& superSet
+) {
+	HT::Result result;
+
+	this->bfsExpand(l, parentSetIndex, result.p);
+
+	this->calculateInversePPrime(result, superSet, other.pPrime);
+
+	return result;
+}
+
+
+void RecursiveMutual::calculatePPrime(HT::Result& result) const {
+	for (index i = 0; i < this->c.cardPartition2; ++i) {
+		count sum = 0;
+
+		for (index part : result.p) {
+			sum += this->c.distributions[part][i];
+		}
+
+		if (2 * sum > this->c.cardinalityOfCluster2[i])
+			result.pPrime.push_back(i);
+		// Maybe in pPrime
+		// else if (2 * sum == this->c.cardinalityOfCluster2[i])
+	}
+}
+
+void RecursiveMutual::calculateInversePPrime(
+	HT::Result& result,
+	const std::vector<index>& superSet,
+	const std::vector<index>& other
+) const {
+	std::set<index> all(superSet.cbegin(), superSet.cend());
+
+	for (auto e : other) {
+		all.erase(all.find(e));
+	}
+
+	std::copy(all.cbegin(), all.cend(), std::back_inserter(result.pPrime));
+}
+
+bool RecursiveMutual::isMutual(const HT::Result& result) const {
+	std::set<index> pSet;
+	std::set<index> pSetMaybe;
+
+	for (index i = 0; i < this->c.cardPartition1; ++i) {
+		count sum = 0;
+
+		for (index part : result.pPrime) {
+			sum += this->c.distributions[i][part];
+		}
+
+		if (2 * sum > this->c.cardinalityOfCluster1[i])
+			pSet.insert(i);
+		else if (2 * sum == this->c.cardinalityOfCluster1[i])
+			pSetMaybe.insert(i);
+	}
+
+	if (result.p.size() < pSet.size()
+		|| result.p.size() > pSet.size() + pSetMaybe.size()
+	)
+		return false;
+
+	count maybeCount = result.p.size() - pSet.size();
+
+	for (index part : result.p) {
+		if (pSet.count(part) != 1) {
+			if (pSetMaybe.count(part) == 1)
+				--maybeCount;
+			else
+				return false;
+		}
+	}
+
+	if (maybeCount != 0)
+		return false;
+
+	return true;
+}
+
 } /* namespace NetworKit */

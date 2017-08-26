@@ -1320,6 +1320,55 @@ protected:
 	bool isMutual(const HT::Result& result) const;
 };
 
+/**
+ * RecursiveMutual is a correspondences exploration algorithm extracting the smallest mutual
+ * correspondences from the gomory hu tree.
+ */
+class RecursiveMutual {
+public:
+	RecursiveMutual(Correspondences& c);
+	~RecursiveMutual() = default;
+
+	std::vector<HT::Result> run();
+protected:
+	Correspondences& c;
+
+	const std::vector<index>& parents;
+	const std::vector<count>& weights;
+
+	GHGraph graph;
+
+	std::vector<index> partSets;
+	index maxSetIndex = 0;
+
+	std::vector<index> weightIndices;
+
+	std::vector<index> indexSortWeight() const;
+
+	HT::Result createRootResult() const;
+
+	count bfsExpand(index from, index expandInto, std::vector<index>& nodes);
+
+	HT::ResultSet<count> processTree(index setIndex, const HT::Result result);
+
+	HT::Result buildResult(index l, index parentSetIndex);
+	HT::Result buildInverseResult(
+		index l,
+		index parentSetIndex,
+		const HT::Result& other,
+		const std::vector<index>& superSet
+	);
+
+	void calculatePPrime(HT::Result& result) const;
+	void calculateInversePPrime(
+		HT::Result& result,
+		const std::vector<index>& superSet,
+		const std::vector<index>& other
+	) const;
+	bool isMutual(const HT::Result& result) const;
+};
+
+
 namespace Strings {
 	const std::string space = " ";
 	const std::string arrow = "->";
