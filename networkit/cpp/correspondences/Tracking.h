@@ -947,19 +947,18 @@ public:
 		Algorithm algorithm(c);
 		for (auto result : algorithm.run()) {
 			timestep.correspondences.push_back(
-				this->extractCorrespondence(result.p, result.pPrime, c)
+				HierarchicalTree<Algorithm>::extractCorrespondence(result.p, result.pPrime, c)
 			);
 		}
 
 		return timestep;
 	}
 
-protected:
-	TimestepData::Correspondence extractCorrespondence(
+	static TimestepData::Correspondence extractCorrespondence(
 		std::vector<index>& p,
 		std::vector<index>& pPrime,
 		Correspondences& c
-	) const {
+	) {
 
 		std::vector<index> pSizes(p.size(), 0);
 		std::vector<index> pPrimeSizes(pPrime.size(), 0);
@@ -1211,11 +1210,11 @@ public:
 			this->resultQueue.pop();
 
 		if (this->resultQueue.empty())
+			// Readvance, so reachedEnd is set appropriately
 			this->advance();
 
 		return *this;
 	}
-
 
 	inline bool ended() const {
 		return this->reachedEnd && this->resultQueue.empty();
@@ -1228,10 +1227,7 @@ public:
 	}
 
 	friend inline bool operator==(const CheapestSetsGenerator& lhs, const CheapestSetsGenerator& rhs) {
-		if (lhs.ended() && rhs.ended())
-			return true;
-		else
-			return false;
+		return lhs.ended() && rhs.ended();
 	}
 
 	friend inline bool operator!=(const CheapestSetsGenerator& lhs, const CheapestSetsGenerator& rhs) {
@@ -1897,6 +1893,127 @@ protected:
 	count timesteps;
 
 	std::vector<std::vector<count>> partToPartCutSum;
+};
+
+template <class Base, class Infuser>
+class Infusion {
+public:
+	Infusion(Base base = Base(), Infuser infuser = Infuser()) : base(base), infuser(infuser) {
+		this->infuser.setData(base.getData());
+	}
+	virtual ~Infusion() = default;
+
+	virtual void add(Partition& partition) {
+		this->base.add(partition);
+		this->infuser.add(partition);
+	}
+
+	virtual void infuse() {
+		this->infuser.infuse();
+	}
+
+protected:
+	Base base;
+	Infuser infuser;
+
+};
+
+template <class Algorithm, class Correspondence=TimestepData::Correspondence>
+class DSampler {
+public:
+	struct Result {
+		index timestep1, timestep2;
+		std::vector<Correspondence> correspondences;
+	};
+
+	DSampler(count d, count rSize) : d(d), rSize(rSize), reservoir(rSize), samples(rSize) {
+	}
+	~DSampler() = default;
+
+	void add(Partition& partition) {
+		++this->timestep;
+
+		count reservoirIndex;
+
+		if (this->timestep % this->d == 1)
+			// Choose new samples every this->d timesteps, timestep counting starts at 1
+			this->chooseSamples();
+
+		for (; this->samplesIt != this->samples.cend() && this->samplesIt->timestep == this->timestep; ++this->samplesIt) {
+			reservoirIndex = this->samplesIt->reservoirIndex;
+
+			if (this->reservoir[reservoirIndex].propagated) {
+				// Only check correspondences if the reservoir entry is valid
+				//  i.e. not in the first this->d timesteps
+
+				Correspondences c;
+				c.detect(2, this->reservoir[reservoirIndex].partition, partition);
+
+				this->results.emplace_back(Result{
+					this->reservoir[reservoirIndex].timestep,
+					this->timestep,
+					std::vector<Correspondence>(0)
+				});
+				Result& result = this->results.back();
+
+				Algorithm algorithm(c);
+				for (auto corres : algorithm.run()) {
+					result.correspondences.push_back(
+						HierarchicalTree<Algorithm>::extractCorrespondence(corres.p, corres.pPrime, c)
+					);
+				}
+			}
+
+			this->reservoir[reservoirIndex].partition = partition;
+			this->reservoir[reservoirIndex].timestep = this->timestep;
+			this->reservoir[reservoirIndex].propagated = true;
+		}
+	}
+
+	const std::vector<Result>& getResults() {
+		return this->results;
+	}
+protected:
+	struct ReservoirEntry {
+		index timestep;
+		Partition partition;
+		bool propagated = false;
+	};
+
+	struct Sample {
+		index reservoirIndex;
+		index timestep;
+	};
+
+	count d;
+	count rSize;
+
+	index timestep = 0;
+
+	std::vector<ReservoirEntry> reservoir;
+
+	std::vector<Sample> samples;
+	typename std::vector<Sample>::const_iterator samplesIt;
+
+	std::vector<Result> results;
+
+	void chooseSamples() {
+		// TODO?
+		//  Use online method to do picking and ordering samples in O(N)
+
+		for (auto it = this->samples.begin(); it != this->samples.end(); ++it) {
+			*it = {
+				static_cast<index>(it - this->samples.begin()),
+				this->timestep + Aux::Random::integer(0, this->d - 1)
+			};
+		}
+
+		std::sort(this->samples.begin(), this->samples.end(), [](const Sample& lhs, const Sample& rhs) {
+			return lhs.timestep < rhs.timestep;
+		});
+
+		this->samplesIt = this->samples.cbegin();
+	}
 };
 
 
