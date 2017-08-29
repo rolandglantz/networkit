@@ -265,6 +265,13 @@ public:
 		: data(data), analyser(analyser), outputer(outputer) {
 			this->outputer.setData(this->data);
 		}
+	StepByStep(const StepByStep& other) {
+		this->analyser = other.analyser;
+		this->data = other.data;
+		this->outputer = other.outputer;
+
+		this->outputer.setData(this->data);
+	}
 
 	virtual ~StepByStep() = default;
 
@@ -320,6 +327,31 @@ protected:
 	Analyser analyser;
 	Outputer outputer;
 };
+
+class OwnershipAccessor {
+public:
+	OwnershipAccessor() = default;
+	virtual ~OwnershipAccessor() = default;
+
+	virtual count noOfParts() = 0;
+
+	virtual index owningPart(index timestep, index cluster) = 0;
+
+	virtual double ownershipMargin(index timestep, index cluster) = 0;
+};
+
+class WOwnershipAccessor : public OwnershipAccessor {
+public:
+	WOwnershipAccessor() = default;
+	virtual ~WOwnershipAccessor() = default;
+
+	void setNoOfParts(count noOfParts);
+
+	void setOwningPart(index timestep, index cluster, index owningPart);
+
+	void setOwnershipMargin(index timestep, index cluster, double ownershipMargin);
+};
+
 
 class TimestepData {
 public:
@@ -415,7 +447,7 @@ public:
 
 	/**
 	 * Comprises ownership information about a cluster.
-	 * largestPart is the index of the cluster holding the largest stake of the cluster, while
+	 * largestPart is the index of the part holding the largest stake of the cluster, while
 	 * stake expresses the relative size of that stake (fraction of cluster owned).
 	 * ownershipMargin expresses the minium fraction of the cluster the owning part must lose to
 	 * be replaced as the largest part. That is: Half the difference between the sizes (in terms
@@ -440,17 +472,28 @@ public:
 
 	class OwnershipAccessor {
 	public:
-		static count getNoOfParts(const DCGTimestepData& data) {
-			return data.getNoOfParts();
+		OwnershipAccessor(const DCGTimestepData& data) : data(data) {
 		}
 
-		static count owningPart(const Timestep& timestep, index part) {
-			return timestep.ownership[part].largestPart;
+		count noOfParts() {
+			return this->data.getNoOfParts();
 		}
 
-		static double ownershipMargin(const Timestep& timestep, index part) {
-			return timestep.ownership[part].ownershipMargin;
+		index owningPart(index timestep, index cluster) {
+			return this->owningPart(this->data.getTimesteps()[timestep], cluster);
 		}
+		index owningPart(const Timestep& timestep, index cluster) {
+			return timestep.ownership[cluster].largestPart;
+		}
+
+		double ownershipMargin(index timestep, index cluster) {
+			return this->ownershipMargin(this->data.getTimesteps()[timestep], cluster);
+		}
+		double ownershipMargin(const Timestep& timestep, index cluster) {
+			return timestep.ownership[cluster].ownershipMargin;
+		}
+	protected:
+		const DCGTimestepData& data;
 	};
 
 	DCGTimestepData(const std::vector<std::vector<index>>& parts) : noOfParts(parts.size()) {}
@@ -486,6 +529,110 @@ public:
 protected:
 	count noOfParts;
 	std::vector<Timestep> timesteps;
+};
+
+template <class Data>
+class OwnershipData {
+public:
+	typedef typename Data::Correspondence Correspondence;
+	typedef typename Data::Timestep Timestep;
+
+	class OwnershipAccessor {
+	public:
+		OwnershipAccessor(OwnershipData& data) : data(data) {
+		}
+
+		count noOfParts() {
+			return this->data.getNoOfParts();
+		}
+
+		index owningPart(index timestep, index cluster) {
+			return this->data.ownershipData.at(timestep).at(cluster).owningPart;
+			// return this->data.ownershipData[timestep][cluster].owningPart;
+		}
+
+		double ownershipMargin(index timestep, index cluster) {
+			return this->data.ownershipData.at(timestep).at(cluster).ownershipMargin;
+			// return this->data.ownershipData[timestep][cluster].ownershipMargin;
+		}
+
+		void setNoOfParts(count noOfParts) {
+			this->data.noOfParts = noOfParts;
+		}
+
+		void setOwningPart(index timestep, index cluster, index owningPart) {
+			if (this->data.ownershipData.size() <= timestep)
+				this->data.ownershipData.resize(timestep + 1);
+
+			std::vector<Ownership>& timestepData = this->data.ownershipData[timestep];
+
+			if (timestepData.size() <= cluster)
+				timestepData.resize(cluster + 1);
+			timestepData[cluster].owningPart = owningPart;
+		}
+
+		void setOwnershipMargin(index timestep, index cluster, double ownershipMargin) {
+			if (this->data.ownershipData.size() <= timestep)
+				this->data.ownershipData.resize(timestep + 1);
+
+			std::vector<Ownership>& timestepData = this->data.ownershipData[timestep];
+
+			if (timestepData.size() <= cluster)
+				timestepData.resize(cluster + 1);
+			timestepData[cluster].ownershipMargin = ownershipMargin;
+		}
+	protected:
+		OwnershipData& data;
+	};
+
+	OwnershipData() = default;
+	~OwnershipData() = default;
+
+	inline void addTimestep(Timestep timestep) {
+		this->data.addTimestep(timestep);
+		this->ownershipData.emplace_back();
+	}
+
+	inline count getNoOfParts() const {
+		return this->noOfParts;
+	}
+
+	inline const typename std::vector<Timestep>& getTimesteps() const {
+		return this->data.getTimesteps();
+	}
+
+	inline typename std::vector<Timestep>::iterator begin() {
+		return this->data.begin();
+	}
+
+	inline typename std::vector<Timestep>::iterator end() {
+		return this->data.end();
+	}
+
+	inline typename std::vector<Timestep>::const_iterator cbegin() const {
+		return this->data.cbegin();
+	}
+
+	inline typename std::vector<Timestep>::const_iterator cend() const {
+		return this->data.cend();
+	}
+protected:
+	/**
+	 * Comprises ownership information about a cluster.
+	 * owningPart is the index of the super cluster holding the largest stake of the cluster.
+	 * ownershipMargin expresses the minium fraction of the cluster the owning part must lose to
+	 * be replaced as the largest part. That is: Half the difference between the sizes (in terms
+	 * of individuals) of the largest and second largest parts divided by the cluster size.
+	 */
+	struct Ownership {
+		index owningPart;
+		double ownershipMargin;
+	};
+
+	Data data;
+
+	count noOfParts;
+	std::vector<std::vector<Ownership>> ownershipData;
 };
 
 class CorrespondencesExtractor {
@@ -1470,18 +1617,18 @@ protected:
 			double mean = static_cast<double>(sum) / static_cast<double>(ts->partitionSizes.size());
 			double coeff = 1.0 / (4.0 * mean);
 
-			index timestep = ts - this->data->cbegin() + 1;
-			stream << timestep << Strings::opBracket << Strings::shapePlaintext << Strings::clBracket << Strings::semicolon;
+			index timestepIndex = ts - this->data->cbegin();
+			stream << timestepIndex + 1 << Strings::opBracket << Strings::shapePlaintext << Strings::clBracket << Strings::semicolon;
 
 			for (auto it = ts->partitionSizes.cbegin(); it != ts->partitionSizes.cend(); ++it) {
-				stream << Strings::p << Strings::underscore << timestep << Strings::underscore;
+				stream << Strings::p << Strings::underscore << timestepIndex + 1 << Strings::underscore;
 				stream << it - ts->partitionSizes.cbegin();
 
 				double height = std::sqrt(coeff * (*it));
 
 				stream << Strings::opBracket;
 
-				this->writeNodeAttributes(stream, *ts, it - ts->partitionSizes.cbegin(), height);
+				this->writeNodeAttributes(stream, timestepIndex, it - ts->partitionSizes.cbegin(), height);
 
 				stream << Strings::clBracket;
 
@@ -1494,7 +1641,7 @@ protected:
 
 	virtual void writeNodeAttributes(
 		std::ostream& stream,
-		const typename Data::Timestep& timestep,
+		index timestepIndex,
 		index part,
 		double height
 	) const {
@@ -1506,8 +1653,11 @@ protected:
 
 	virtual void writeEdges(std::ostream& stream) const {
 		// Write edges
+		if (this->data->getTimesteps().size() < 1)
+			return;
+
 		for (auto ts = this->data->cbegin() + 1; ts != this->data->cend(); ++ts) {
-			index timestep = ts - this->data->cbegin() + 1;
+			index timestepIndex = ts - this->data->cbegin();
 
 			for (auto corr = ts->correspondences.cbegin(); corr != ts->correspondences.cend(); ++corr) {
 				if (corr->p.size() == 0 || corr->pPrime.size() == 0)
@@ -1516,13 +1666,13 @@ protected:
 				stream << Strings::opCurly;
 
 				for (auto pIt = corr->p.cbegin(); pIt != corr->p.cend(); ++pIt) {
-					stream << Strings::p << Strings::underscore << timestep - 1 << Strings::underscore << *pIt << Strings::semicolon;
+					stream << Strings::p << Strings::underscore << timestepIndex << Strings::underscore << *pIt << Strings::semicolon;
 				}
 
 				stream << Strings::clCurly << Strings::arrow << Strings::opCurly;
 
 				for (auto pPrimeIt = corr->pPrime.cbegin(); pPrimeIt != corr->pPrime.cend(); ++pPrimeIt) {
-					stream << Strings::p << Strings::underscore << timestep << Strings::underscore << *pPrimeIt << Strings::semicolon;
+					stream << Strings::p << Strings::underscore << timestepIndex + 1 << Strings::underscore << *pPrimeIt << Strings::semicolon;
 				}
 
 				stream << Strings::clCurly;
@@ -1538,10 +1688,12 @@ template <class Data, class OwnershipAccessor = typename Data::OwnershipAccessor
 class OwnershipDotOutput : public DotOutput<Data> {
 public:
 	virtual void aggregate(std::ostream& stream) override {
+		OwnershipAccessor accessor(*this->data);
+
 		// Propagate the palette, that is a base hue value for each part
-		this->palette = std::vector<int16_t>(OwnershipAccessor::getNoOfParts(*this->data));
+		this->palette = std::vector<int16_t>(accessor.noOfParts());
 		// Use 360 degree hue spectrum with wrap-around to find colours
-		double increment = 360.0 / static_cast<double>(OwnershipAccessor::getNoOfParts(*this->data));
+		double increment = 360.0 / static_cast<double>(accessor.noOfParts());
 
 		double runningHue = 0.0;
 		for (auto it = this->palette.begin(); it != this->palette.end(); ++it) {
@@ -1556,19 +1708,21 @@ protected:
 
 	virtual void writeNodeAttributes(
 		std::ostream& stream,
-		const typename Data::Timestep& timestep,
+		index timestepIndex,
 		index part,
 		double height
 	) const override {
-		this->DotOutput<Data>::writeNodeAttributes(stream, timestep, part, height);
+		OwnershipAccessor accessor(*this->data);
+
+		this->DotOutput<Data>::writeNodeAttributes(stream, timestepIndex, part, height);
 		stream << Strings::comma;
 
 		stream << Strings::styleFilled << Strings::comma;
 
 		stream << Strings::fillcolorEquals << Strings::quote;
-		stream << static_cast<double>(this->palette[OwnershipAccessor::owningPart(timestep, part)]) / 360.0;
+		stream << static_cast<double>(this->palette[accessor.owningPart(timestepIndex, part)]) / 360.0;
 		stream << Strings::comma;
-		stream << 0.75 * 2 * OwnershipAccessor::ownershipMargin(timestep, part) + 0.1;
+		stream << 0.75 * 2 * accessor.ownershipMargin(timestepIndex, part) + 0.1;
 		stream << Strings::comma << 1.0;
 		stream << Strings::quote;
 	}
@@ -1613,7 +1767,7 @@ protected:
 
 		// Write nodes
 		for (auto ts = this->data->cbegin(); ts != this->data->cend(); ++ts) {
-			index timestep = ts - this->data->cbegin() + 1;
+			index timestepIndex = ts - this->data->cbegin();
 
 			for (auto it = ts->partitionSizes.cbegin(); it != ts->partitionSizes.cend(); ++it) {
 				if (first)
@@ -1623,7 +1777,8 @@ protected:
 
 				stream << Strings::opCurly;
 
-				this->writePartNodeAttributes(stream, *ts, timestep, it -ts->partitionSizes.cbegin(), *it);
+				this->writePartNodeAttributes(stream, timestepIndex,
+					it - ts->partitionSizes.cbegin(), *it);
 
 				stream << Strings::clCurly;
 			}
@@ -1636,7 +1791,7 @@ protected:
 
 				stream << Strings::opCurly;
 
-				this->writeCorrespondenceNodeAttributes(stream, *ts, timestep,
+				this->writeCorrespondenceNodeAttributes(stream, timestepIndex,
 					it - ts->correspondences.cbegin());
 
 				stream << Strings::clCurly;
@@ -1648,19 +1803,18 @@ protected:
 
 	virtual void writePartNodeAttributes(
 		std::ostream& stream,
-		const typename Data::Timestep& timestep,
 		index timestepIndex,
 		index part,
 		count size
 	) const {
 		stream << Strings::quote << Strings::spec << Strings::quote << Strings::colon;
-		stream << Strings::quote << Strings::p << Strings::underscore << timestepIndex;
+		stream << Strings::quote << Strings::p << Strings::underscore << timestepIndex + 1;
 		stream << Strings::underscore << part << Strings::quote;
 
 		stream << Strings::comma;
 
 		stream << Strings::quote << Strings::rank << Strings::quote << Strings::colon;
-		stream << 2 * (timestepIndex - 1);
+		stream << 2 * timestepIndex;
 
 		stream << Strings::comma;
 
@@ -1669,18 +1823,17 @@ protected:
 
 	virtual void writeCorrespondenceNodeAttributes(
 		std::ostream& stream,
-		const typename Data::Timestep& timestep,
 		index timestepIndex,
 		index corresIndex
 	) const {
 		stream << Strings::quote << Strings::spec << Strings::quote << Strings::colon;
-		stream << Strings::quote << Strings::c << Strings::underscore << timestepIndex;
+		stream << Strings::quote << Strings::c << Strings::underscore << timestepIndex + 1;
 		stream << Strings::underscore << corresIndex << Strings::quote;
 
 		stream << Strings::comma;
 
 		stream << Strings::quote << Strings::rank << Strings::quote << Strings::colon;
-		stream << 2 * (timestepIndex - 1) - 1;
+		stream << 2 * timestepIndex - 1;
 	}
 
 	virtual void writeLinks(std::ostream& stream) const {
@@ -1689,7 +1842,7 @@ protected:
 		bool first = true;
 
 		for (auto ts = this->data->cbegin(); ts != this->data->cend(); ++ts) {
-			index timestepIndex = ts - this->data->cbegin() + 1;
+			index timestepIndex = ts - this->data->cbegin();
 
 			for (auto it = ts->correspondences.cbegin(); it != ts->correspondences.cend(); ++it) {
 				index corresIndex = it - ts->correspondences.cbegin();
@@ -1702,7 +1855,7 @@ protected:
 
 					stream << Strings::opCurly;
 
-					this->writePLinkAttributes(stream, *ts, timestepIndex, *pIt, corresIndex,
+					this->writePLinkAttributes(stream, timestepIndex, *pIt, corresIndex,
 						it->pSizes[pIt - it->p.cbegin()]);
 
 					stream << Strings::clCurly;
@@ -1716,7 +1869,7 @@ protected:
 
 					stream << Strings::opCurly;
 
-					this->writePPrimeLinkAttributes(stream, *ts, timestepIndex, corresIndex, *pPrimeIt,
+					this->writePPrimeLinkAttributes(stream, timestepIndex, corresIndex, *pPrimeIt,
 						it->pPrimeSizes[pPrimeIt - it->pPrime.cbegin()]);
 
 					stream << Strings::clCurly;
@@ -1729,20 +1882,19 @@ protected:
 
 	virtual void writePLinkAttributes(
 		std::ostream& stream,
-		const typename Data::Timestep& timestep,
 		index timestepIndex,
 		index part,
 		index corresIndex,
 		count value
 	) const {
 		stream << Strings::quote << Strings::source << Strings::quote << Strings::colon;
-		stream << Strings::quote << Strings::p << Strings::underscore << timestepIndex - 1;
+		stream << Strings::quote << Strings::p << Strings::underscore << timestepIndex;
 		stream << Strings::underscore << part << Strings::quote;
 
 		stream << Strings::comma;
 
 		stream << Strings::quote << Strings::target << Strings::quote << Strings::colon;
-		stream << Strings::quote << Strings::c << Strings::underscore << timestepIndex;
+		stream << Strings::quote << Strings::c << Strings::underscore << timestepIndex + 1;
 		stream << Strings::underscore << corresIndex << Strings::quote;
 
 		stream << Strings::comma;
@@ -1753,20 +1905,19 @@ protected:
 
 	virtual void writePPrimeLinkAttributes(
 		std::ostream& stream,
-		const typename Data::Timestep& timestep,
 		index timestepIndex,
 		index corresIndex,
 		index part,
 		count value
 	) const {
 		stream << Strings::quote << Strings::source << Strings::quote << Strings::colon;
-		stream << Strings::quote << Strings::c << Strings::underscore << timestepIndex;
+		stream << Strings::quote << Strings::c << Strings::underscore << timestepIndex + 1;
 		stream << Strings::underscore << corresIndex << Strings::quote;
 
 		stream << Strings::comma;
 
 		stream << Strings::quote << Strings::target << Strings::quote << Strings::colon;
-		stream << Strings::quote << Strings::p << Strings::underscore << timestepIndex;
+		stream << Strings::quote << Strings::p << Strings::underscore << timestepIndex + 1;
 		stream << Strings::underscore << part << Strings::quote;
 
 		stream << Strings::comma;
@@ -1780,6 +1931,8 @@ template <class Data, class OwnershipAccessor = typename Data::OwnershipAccessor
 class OwnershipJSONOutput : public JSONOutput<Data> {
 protected:
 	virtual void writeNodes(std::ostream& stream) const override {
+		OwnershipAccessor accessor(*this->data);
+
 		this->JSONOutput<Data>::writeNodes(stream);
 		stream << Strings::comma;
 
@@ -1787,24 +1940,24 @@ protected:
 		stream << Strings::opCurly;
 
 		stream << Strings::quote << "number" << Strings::quote << Strings::colon;
-		stream << OwnershipAccessor::getNoOfParts(*this->data);
+		stream << accessor.noOfParts();
 
 		stream << Strings::clCurly;
 	}
 
 	virtual void writePartNodeAttributes(
 		std::ostream& stream,
-		const typename Data::Timestep& timestep,
 		index timestepIndex,
 		index part,
 		count size
 	) const override {
-		this->JSONOutput<Data>::writePartNodeAttributes(
-			stream, timestep, timestepIndex, part, size);
+		OwnershipAccessor accessor(*this->data);
+
+		this->JSONOutput<Data>::writePartNodeAttributes(stream, timestepIndex, part, size);
 		stream << Strings::comma;
 
 		stream << Strings::quote << "cluster" << Strings::quote << Strings::colon;
-		stream << OwnershipAccessor::owningPart(timestep, part);
+		stream << accessor.owningPart(timestepIndex, part);
 	}
 };
 
@@ -1818,7 +1971,9 @@ public:
 		if (data == NULL)
 			return 0;
 
-		count noOfParts = OwnershipAccessor::getNoOfParts(*this->data);
+		OwnershipAccessor accessor(*this->data);
+
+		count noOfParts = accessor.noOfParts();
 
 		this->partToPartCutSum.assign(noOfParts, std::vector<count>(noOfParts, 0));
 
@@ -1827,18 +1982,21 @@ public:
 		this->cuts = 0;
 		this->edges = 0;
 
+		index timestepIndex;
+
 		for (auto ts = this->data->cbegin(); ts != this->data->cend(); ++ts) {
-			++this->timesteps;
+			timestepIndex = ts - this->data->cbegin();
 
 			for (auto it = ts->correspondences.cbegin(); it != ts->correspondences.cend(); ++it) {
 				for (auto pIt = it->p.cbegin(); pIt != it->p.cend(); ++pIt) {
 					for (auto pPrimeIt = it->pPrime.cbegin(); pPrimeIt != it->pPrime.cend(); ++pPrimeIt) {
-						if (OwnershipAccessor::owningPart(*(ts - 1), *pIt) != OwnershipAccessor::owningPart(*ts, *pPrimeIt)) {
+						if (accessor.owningPart(timestepIndex - 1, *pIt) != accessor.owningPart(timestepIndex, *pPrimeIt)) {
 							this->cutSum += it->pToPPrimeSizes[pIt - it->p.cbegin()][pPrimeIt - it->pPrime.cbegin()];
 							++this->cuts;
 
-							this->partToPartCutSum[OwnershipAccessor::owningPart(*(ts - 1), *pIt)][OwnershipAccessor::owningPart(*ts, *pPrimeIt)]
-							 	+= it->pToPPrimeSizes[pIt - it->p.cbegin()][pPrimeIt - it->pPrime.cbegin()];
+							this->partToPartCutSum[accessor.owningPart(timestepIndex - 1, *pIt)]
+								[accessor.owningPart(timestepIndex, *pPrimeIt)]
+							 		+= it->pToPPrimeSizes[pIt - it->p.cbegin()][pPrimeIt - it->pPrime.cbegin()];
 						}
 
 						this->edgeSum += it->pToPPrimeSizes[pIt - it->p.cbegin()][pPrimeIt - it->pPrime.cbegin()];
@@ -1848,6 +2006,7 @@ public:
 			}
 		}
 
+		this->timesteps = timestepIndex + 1;
 		this->evaluated = true;
 
 		return this->cutSum;
@@ -1899,17 +2058,27 @@ template <class Base, class Infuser>
 class Infusion {
 public:
 	Infusion(Base base = Base(), Infuser infuser = Infuser()) : base(base), infuser(infuser) {
-		this->infuser.setData(base.getData());
+		this->infuser.setData(this->base.getData());
+	}
+	Infusion(const Infusion& other) {
+		this->base = other.base;
+		this->infuser = other.infuser;
+
+		this->infuser.setData(this->base.getData());
 	}
 	virtual ~Infusion() = default;
 
-	virtual void add(Partition& partition) {
+	virtual void add(const Partition& partition) {
 		this->base.add(partition);
 		this->infuser.add(partition);
 	}
 
 	virtual void infuse() {
 		this->infuser.infuse();
+	}
+
+	virtual Base& getBase() {
+		return this->base;
 	}
 
 protected:
@@ -1930,13 +2099,11 @@ public:
 	}
 	~DSampler() = default;
 
-	void add(Partition& partition) {
-		++this->timestep;
-
+	void add(const Partition& partition) {
 		count reservoirIndex;
 
-		if (this->timestep % this->d == 1)
-			// Choose new samples every this->d timesteps, timestep counting starts at 1
+		if (this->timestep % this->d == 0)
+			// Choose new samples every this->d timesteps, timestep counting starts at 0
 			this->chooseSamples();
 
 		for (; this->samplesIt != this->samples.cend() && this->samplesIt->timestep == this->timestep; ++this->samplesIt) {
@@ -1968,6 +2135,8 @@ public:
 			this->reservoir[reservoirIndex].timestep = this->timestep;
 			this->reservoir[reservoirIndex].propagated = true;
 		}
+
+		++this->timestep;
 	}
 
 	const std::vector<Result>& getResults() {
