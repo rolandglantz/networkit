@@ -13,6 +13,11 @@
 // #define DEBUG_WRITE_HDT
 // #define DEBUG_WRITE_PARTITION
 
+// If set, code depending on Infomap will be included
+// http://www.mapequation.org/
+// https://github.com/mapequation/infomap
+// #define INFOMAP
+
 #include <algorithm>
 #include <deque>
 #include <fstream>
@@ -20,6 +25,11 @@
 #include <ostream>
 #include <queue>
 #include <vector>
+
+#ifdef INFOMAP
+#define NS_INFOMAP
+#include <Infomap.h>
+#endif /* INFOMAP */
 
 #include "../Globals.h"
 #include "../structures/Partition.h"
@@ -2185,6 +2195,153 @@ protected:
 	}
 };
 
+
+#ifdef INFOMAP
+
+template <class Data, class Sampler, class WOwnershipAccessor = typename Data::OwnershipAccessor>
+class InfomapInfuser {
+public:
+	InfomapInfuser(std::string flags, Sampler sampler = Sampler()) : flags(flags), sampler(sampler) {
+	}
+	~InfomapInfuser() = default;
+
+	void add(const Partition& partition) {
+		this->sampler.add(partition);
+	}
+
+	void setData(Data& data) {
+		this->data = &data;
+	}
+
+	void infuse() {
+		infomap::Infomap infomapWrapper(this->flags);
+
+		this->addLinks(infomapWrapper);
+
+		infomapWrapper.run();
+
+		this->infuseOwnershipData(infomapWrapper);
+	}
+protected:
+	struct TimestepCluster {
+		index timestep;
+		index cluster;
+	};
+
+	Data* data;
+	Sampler sampler;
+
+	std::string flags;
+
+	/**
+	 * mapping[timestep][cluster] is the infomap id of a timestep cluster.
+	 *
+	 * Timestep counting starts at 0
+	 */
+	std::vector<std::vector<index>> mapping;
+	index maxInfomapId = 0;
+
+	/**
+	 * The inverse of mapping.
+	 *
+	 * Timestep counting starts at 0
+	 */
+	std::vector<TimestepCluster> backMapping;
+
+	void addLinks(infomap::Infomap& infomapWrapper) {
+
+		for (auto ts = this->data->cbegin(); ts != this->data->cend(); ++ts) {
+			index timestep = ts - this->data->cbegin();
+
+			for (auto cs = ts->correspondences.cbegin(); cs != ts->correspondences.cend(); ++cs) {
+				for (auto pIt = cs->p.cbegin(); pIt != cs->p.cend(); ++pIt) {
+					for (auto pPrimeIt = cs->pPrime.cbegin(); pPrimeIt != cs->pPrime.cend(); ++pPrimeIt) {
+						infomapWrapper.addLink(
+							this->getId(timestep - 1, *pIt),
+							this->getId(timestep, *pPrimeIt),
+							static_cast<double>(cs->pToPPrimeSizes[pIt - cs->p.cbegin()][pPrimeIt - cs->pPrime.cbegin()])
+						);
+					}
+				}
+			}
+
+		}
+
+		for (auto rIt = this->sampler.getResults().cbegin(); rIt != this->sampler.getResults().cend(); ++rIt) {
+
+			for (auto cs = rIt->correspondences.cbegin(); cs != rIt->correspondences.cend(); ++cs) {
+				for (auto pIt = cs->p.cbegin(); pIt != cs->p.cend(); ++pIt) {
+					for (auto pPrimeIt = cs->pPrime.cbegin(); pPrimeIt != cs->pPrime.cend(); ++pPrimeIt) {
+						infomapWrapper.addLink(
+							this->getId(rIt->timestep1, *pIt),
+							this->getId(rIt->timestep2, *pPrimeIt),
+							static_cast<double>(cs->pToPPrimeSizes[pIt - cs->p.cbegin()][pPrimeIt - cs->pPrime.cbegin()])
+						);
+					}
+				}
+
+			}
+
+		}
+	}
+
+	void infuseOwnershipData(infomap::Infomap& infomapWrapper) {
+		infomap::LeafIterator leafIt(&infomapWrapper.tree.getRootNode());
+
+		WOwnershipAccessor accessor(*this->data);
+
+		count maxModuleIndex = static_cast<count>(-1);
+
+		for (; !leafIt.isEnd(); ++leafIt) {
+			TimestepCluster info = this->backMapping[leafIt->originalLeafIndex];
+
+			accessor.setOwningPart(
+				info.timestep,
+				info.cluster,
+				leafIt.moduleIndex()
+			);
+			accessor.setOwnershipMargin(
+				info.timestep,
+				info.cluster,
+				0.5
+			);
+
+			maxModuleIndex = std::max(
+				(maxModuleIndex == static_cast<count>(-1))? 0 : maxModuleIndex,
+				static_cast<count>(leafIt.moduleIndex())
+			);
+		}
+
+		if (maxModuleIndex == static_cast<count>(-1))
+			accessor.setNoOfParts(0);
+		else
+			accessor.setNoOfParts(maxModuleIndex + 1);
+	}
+
+	index getId(const TimestepCluster& timestepCluster) {
+		return this->getId(timestepCluster.timestep, timestepCluster.cluster);
+	}
+
+	index getId(index timestep, index cluster) {
+		if (this->mapping.size() <= timestep)
+			this->mapping.resize(timestep + 1);
+
+		if (this->mapping[timestep].size() <= cluster) {
+			for (int i = cluster - this->mapping[timestep].size() + 1; i > 0; --i) {
+				this->mapping[timestep].push_back(this->maxInfomapId++);
+
+				this->backMapping.push_back({
+					timestep,
+					this->mapping[timestep].size() - 1
+				});
+			}
+		}
+
+		return this->mapping[timestep][cluster];
+	}
+};
+
+#endif /* INFOMAP */
 
 } /* namespace NetworKit */
 
