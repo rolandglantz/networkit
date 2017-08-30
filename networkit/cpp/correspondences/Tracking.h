@@ -13,10 +13,16 @@
 // #define DEBUG_WRITE_HDT
 // #define DEBUG_WRITE_PARTITION
 
-// If set, code depending on Infomap will be included
+// If set, code depending on Infomap will be included.
+// #define INFOMAP
+//
+// To include infomap, its header files and compiled library must be available.
+// When compiling with scons, the infomap key must be set in build.conf's libraries section.
+// If the infomap files are not in system locations, custom include and library paths can be set,
+// by specifying them in the build.conf's libraries and includes sections under the infomap key.
+//
 // http://www.mapequation.org/
 // https://github.com/mapequation/infomap
-// #define INFOMAP
 
 #include <algorithm>
 #include <deque>
@@ -2201,7 +2207,8 @@ protected:
 template <class Data, class Sampler, class WOwnershipAccessor = typename Data::OwnershipAccessor>
 class InfomapInfuser {
 public:
-	InfomapInfuser(std::string flags, Sampler sampler = Sampler()) : flags(flags), sampler(sampler) {
+	InfomapInfuser(std::string flags, Sampler sampler = Sampler(), int moduleIndexDepth = -1)
+	: flags(flags), sampler(sampler), moduleIndexDepth(moduleIndexDepth) {
 	}
 	~InfomapInfuser() = default;
 
@@ -2232,6 +2239,7 @@ protected:
 	Sampler sampler;
 
 	std::string flags;
+	int moduleIndexDepth;
 
 	/**
 	 * mapping[timestep][cluster] is the infomap id of a timestep cluster.
@@ -2286,7 +2294,7 @@ protected:
 	}
 
 	void infuseOwnershipData(infomap::Infomap& infomapWrapper) {
-		infomap::LeafIterator leafIt(&infomapWrapper.tree.getRootNode());
+		infomap::LeafIterator leafIt(&infomapWrapper.tree.getRootNode(), this->moduleIndexDepth);
 
 		WOwnershipAccessor accessor(*this->data);
 
