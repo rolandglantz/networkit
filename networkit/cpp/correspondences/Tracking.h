@@ -2351,6 +2351,137 @@ protected:
 
 #endif /* INFOMAP */
 
+class GomoryHuAggregation {
+public:
+	GomoryHuAggregation(const Partition base) : base(base),
+		subclusterCounts(base.upperBound(), 0) {
+	}
+	~GomoryHuAggregation() = default;
+
+	void add(const Partition& partition) {
+		Correspondences c;
+
+		c.detect(2, this->base, partition);
+
+		std::vector<count> depths = this->calculateDepths(c.gomoryHuParent);
+
+		this->addToAggregate(
+			c.gomoryHuParent,
+			c.cutWithGomoryHuParent,
+			depths
+		);
+	}
+
+	const SymmetricMatrix<count>& getM() const {
+		return this->subclusterCounts;
+	}
+
+	static GomoryHuAggregation from(
+		const DynamicCommunitiesGenerator& g
+	) {
+		GeneratorState state(g);
+
+		Partition base(state.getParameters().n);
+		base.setUpperBound(state.getParameters().affinities.getN());
+
+		auto individuals = state.getIndividuals();
+		for (auto it = individuals.cbegin() + 1; it != individuals.cend(); ++it) {
+			base.addToSubset(
+				it->homeSubcluster - 1,
+				it - individuals.cbegin() - 1
+			);
+		}
+
+		return GomoryHuAggregation(base);
+	}
+protected:
+	Partition base;
+	SymmetricMatrix<count> subclusterCounts;
+
+	void addToAggregate(
+		const std::vector<index>& parents,
+		const std::vector<count>& weights,
+		const std::vector<count>& depths
+	) {
+		for (index i = 0; i < this->subclusterCounts.getN(); ++i) {
+			for (index j = i + 1; j < this->subclusterCounts.getN(); ++j) {
+				this->subclusterCounts.set(
+					i + 1,
+					j + 1,
+					this->subclusterCounts.get(i + 1, j + 1)
+						+ this->cheapestEdge(i, j, parents, weights, depths)
+				);
+			}
+		}
+	}
+
+	std::vector<count> calculateDepths(const std::vector<index>& parents) const {
+		std::vector<count> depth(parents.size(), static_cast<count>(-1));
+		std::vector<index> stack;
+
+		index v;
+
+		for (auto it = parents.cbegin(); it != parents.cend(); ++it) {
+			v = it - parents.cbegin();
+
+			while (depth[v] == static_cast<count>(-1)) {
+				if (parents[v] == parents.size())
+					// v is the tree's root
+					depth[v] = 0;
+				else {
+					stack.push_back(v);
+					v = parents[v];
+				}
+			}
+
+			while (!stack.empty()) {
+				v = stack.back();
+				depth[v] = depth[parents[v]] + 1;
+				stack.pop_back();
+			}
+		}
+
+		return depth;
+	}
+
+	count cheapestEdge(
+		index i,
+		index j,
+		const std::vector<index>& parents,
+		const std::vector<count>& weights,
+		const std::vector<count>& depths
+	) const {
+		if (depths[i] < depths[j])
+			return this->cheapestEdge(j, i, parents, weights, depths);
+
+		count cheapestEdgeCost = static_cast<count>(-1);
+		index p_i = i;
+		index p_j = j;
+
+		while (depths[p_i] > depths[p_j]) {
+			cheapestEdgeCost = std::min(
+				cheapestEdgeCost,
+				weights[p_i]
+			);
+
+			p_i = parents[p_i];
+		}
+
+		while (p_i != p_j) {
+			cheapestEdgeCost = std::min({
+				cheapestEdgeCost,
+				weights[p_i],
+				weights[p_j]
+			});
+
+			p_i = parents[p_i];
+			p_j = parents[p_j];
+		}
+
+		return cheapestEdgeCost;
+	}
+};
+
 } /* namespace NetworKit */
 
 #endif /* TRACKING_H_ */
