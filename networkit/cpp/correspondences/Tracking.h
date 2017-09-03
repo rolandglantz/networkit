@@ -299,12 +299,12 @@ public:
 			this->first = false;
 		} else {
 			this->data.addTimestep(
-				this->analyser.analyseStep(this->lastPartition, partition)
+				this->analyser.analyseStep(this->previousPartition, partition)
 			);
 		}
 
 		// Copy partition over so it can be used in the next add() call.
-		this->lastPartition = partition;
+		this->previousPartition = partition;
 	}
 
 	virtual Data& getData() {
@@ -316,7 +316,7 @@ public:
 	}
 
 protected:
-	Partition lastPartition;
+	Partition previousPartition;
 	bool first = true;
 
 	Data data;
@@ -832,8 +832,13 @@ public:
 			this->partSets[*it] = ++this->maxSetIndex;
 			this->partSets[this->parents[*it]] = ++this->maxSetIndex;
 
+			#ifdef DEBUG_WRITE_HDT
 			Node& nodeA = this->propagateNode(*it, parentSetIndex);
 			Node& nodeB = this->propagateNode(this->parents[*it], parentSetIndex);
+			#else
+			this->propagateNode(*it, parentSetIndex);
+			this->propagateNode(this->parents[*it], parentSetIndex);
+			#endif /* DEBUG_WRITE_HDT */
 
 			#ifdef DEBUG_WRITE_HDT
 			// DEBUG
@@ -1998,7 +2003,7 @@ public:
 		this->cuts = 0;
 		this->edges = 0;
 
-		index timestepIndex;
+		index timestepIndex = 0;
 
 		for (auto ts = this->data->cbegin(); ts != this->data->cend(); ++ts) {
 			timestepIndex = ts - this->data->cbegin();
@@ -2033,25 +2038,25 @@ public:
 		this->evaluated = false;
 	}
 
-	virtual inline count getCutSum() {
+	virtual inline count getCutSum() const {
 		return this->cutSum;
 	}
-	virtual inline count getEdgeSum() {
+	virtual inline count getEdgeSum() const {
 		return this->edgeSum;
 	}
-	virtual inline count getCuts() {
+	virtual inline count getCuts() const {
 		return this->cuts;
 	}
-	virtual inline count getEdges() {
+	virtual inline count getEdges() const {
 		return this->edges;
 	}
-	virtual inline count getTimesteps() {
+	virtual inline count getTimesteps() const {
 		return this->timesteps;
 	}
-	virtual inline std::vector<std::vector<count>>& getPartToPartCutSum() {
+	virtual inline const std::vector<std::vector<count>>& getPartToPartCutSum() const {
 		return this->partToPartCutSum;
 	}
-	virtual inline count getPartToPartCutSum(index partA, index partB) {
+	virtual inline count getPartToPartCutSum(index partA, index partB) const {
 		return this->partToPartCutSum[partA][partB];
 	}
 protected:
