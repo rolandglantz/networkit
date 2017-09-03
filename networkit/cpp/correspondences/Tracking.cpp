@@ -141,7 +141,7 @@ TimestepData::Correspondence  CorrespondencesExtractor::extract(const std::vecto
 		std::vector<index>(parts.size(), 0),
 		std::vector<index>(0),
 
-		std::vector<std::vector<count>>(0)
+		std::vector<std::vector<count>>(parts.size())
 	};
 
 	count intersection = 0;
