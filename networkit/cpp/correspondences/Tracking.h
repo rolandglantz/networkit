@@ -2482,6 +2482,133 @@ protected:
 	}
 };
 
+template <class Algorithm>
+class CorrespondencesAggregation {
+public:
+	CorrespondencesAggregation(const Partition base) : base(base),
+		subclusterCounts(base.upperBound(), 0) {
+	}
+	~CorrespondencesAggregation() = default;
+
+	void add(const Partition& partition) {
+		if (this->first) {
+			this->first = false;
+		} else {
+			this->analyse(this->previousPartition, partition);
+		}
+		this->previousPartition = partition;
+	}
+
+	const SymmetricMatrix<count>& getM() const {
+		return this->subclusterCounts;
+	}
+
+	static CorrespondencesAggregation from(
+		const DynamicCommunitiesGenerator& g
+	) {
+		GeneratorState state(g);
+
+		Partition base(state.getParameters().n);
+		base.setUpperBound(state.getParameters().affinities.getN());
+
+		auto individuals = state.getIndividuals();
+		for (auto it = individuals.cbegin() + 1; it != individuals.cend(); ++it) {
+			base.addToSubset(
+				it->homeSubcluster - 1,
+				it - individuals.cbegin() - 1
+			);
+		}
+
+		return CorrespondencesAggregation(base);
+	}
+
+protected:
+	Partition base;
+	SymmetricMatrix<count> subclusterCounts;
+
+	Partition previousPartition;
+	bool first = true;
+
+	void analyse(const Partition& partition1, const Partition& partition2) {
+		Correspondences c;
+		c.detect(2, partition1, partition2);
+
+		Correspondences cP1;
+		this->propagateDistributions(cP1, partition1, this->base);
+
+		Correspondences cP2;
+		this->propagateDistributions(cP2, partition2, this->base);
+
+		Algorithm algorithm(c);
+		for (auto result : algorithm.run()) {
+			this->updateCounts(
+				result.p, result.pPrime, cP1, cP2
+			);
+		}
+	}
+
+	void propagateDistributions(
+		Correspondences& c,
+		const Partition& partitionA,
+		const Partition& partitionB
+	) {
+		count numberOfElements = partitionA.numberOfElements();
+
+		// Normalised permutations of partitionA and partitionB
+		Partition partition1, partition2;
+		// Mapping of old elements to new elements after normalization
+		std::vector<index> old2newElement(numberOfElements);
+
+		c.normalizeElements(partitionA, partitionB, partition1, partition2, old2newElement);
+
+		// Calculate distributions matrix
+		c.getDistributions(partition1, partition2);
+	}
+
+	void updateCounts(
+		const std::vector<index>& p,
+		const std::vector<index>& pPrime,
+		const Correspondences& cP,
+		const Correspondences& cPPrime
+	) {
+		std::vector<index> pBase = this->calculatePPrime(p, cP);
+		std::vector<index> pPrimeBase = this->calculatePPrime(pPrime, cPPrime);
+
+		for (index i : pBase) {
+			for (index j : pPrimeBase) {
+				if (i == j)
+					continue;
+				else
+					this->subclusterCounts.set(
+						i + 1,
+						j + 1,
+						this->subclusterCounts.get(i + 1, j + 1) + 1
+					);
+			}
+		}
+	}
+
+	std::vector<index> calculatePPrime(
+		const std::vector<index>& p,
+		const Correspondences& c
+	) const {
+		std::vector<index> pPrime;
+
+		for (index i = 0; i < c.cardPartition2; ++i) {
+			count sum = 0;
+
+			for (index part : p) {
+				sum += c.distributions[part][i];
+			}
+
+			if (2 * sum > c.cardinalityOfCluster2.at(i))
+				pPrime.push_back(i);
+		}
+
+		return pPrime;
+	}
+};
+
 } /* namespace NetworKit */
 
 #endif /* TRACKING_H_ */
