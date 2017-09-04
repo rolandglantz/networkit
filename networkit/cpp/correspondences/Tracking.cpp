@@ -530,10 +530,10 @@ void CheapestSetsGenerator::advance() {
 	this->reachedEnd = true;
 }
 
-HT::Result& CheapestSetsGenerator::propagateResult(index l, index parentSetIndex) {
+RW::Result& CheapestSetsGenerator::propagateResult(index l, index parentSetIndex) {
 	index setIndex = this->partSets[l];
 
-	HT::Result& result = this->refResultSet(setIndex);
+	RW::Result& result = this->refResultSet(setIndex);
 	result.cost = this->bfsExpand(l, parentSetIndex, result.p);
 
 	this->resultQueue.push(setIndex);
@@ -569,7 +569,7 @@ count CheapestSetsGenerator::bfsExpand(index from, index expandInto, std::vector
 	return outerWeight;
 }
 
-HT::Result& CheapestSetsGenerator::refResultSet(int set) {
+RW::Result& CheapestSetsGenerator::refResultSet(int set) {
 	index vectorIndex = set - this->minSetIndex;
 
 	if (vectorIndex >= this->sets.size())
@@ -586,14 +586,14 @@ CheapestMutual::CheapestMutual(Correspondences& c)
 }
 
 
-std::vector<HT::Result> CheapestMutual::run() {
-	HT::Result rootResult = this->createRootResult();
+std::vector<RW::Result> CheapestMutual::run() {
+	RW::Result rootResult = this->createRootResult();
 
 	return this->exploreTree(0, rootResult, false).results;
 }
 
-HT::Result CheapestMutual::createRootResult() const {
-	HT::Result result{
+RW::Result CheapestMutual::createRootResult() const {
+	RW::Result result{
 		std::vector<index>(this->c.gomoryHuParent.size()),
 		{},
 		0
@@ -606,8 +606,8 @@ HT::Result CheapestMutual::createRootResult() const {
 	return result;
 }
 
-HT::ResultSet<count> CheapestMutual::exploreTree(
-	index setIndex, const HT::Result& self, bool isSelfMutual
+RW::ResultSet<count> CheapestMutual::exploreTree(
+	index setIndex, const RW::Result& self, bool isSelfMutual
 ) {
 	CheapestSetsGenerator g(this->c, this->partSets, setIndex);
 
@@ -618,7 +618,7 @@ HT::ResultSet<count> CheapestMutual::exploreTree(
 
 		this->calculatePPrime(*g);
 
-		const HT::Result& resultA = *g;
+		const RW::Result& resultA = *g;
 
 		if (this->isMutual(resultA)) {
 			index resultASetIndex = ++this->maxSetIndex;
@@ -626,17 +626,17 @@ HT::ResultSet<count> CheapestMutual::exploreTree(
 				this->partSets[part] = resultASetIndex;
 			}
 
-			HT::Result resultB = this->buildInverseResult(resultA, self.p);
+			RW::Result resultB = this->buildInverseResult(resultA, self.p);
 
-			HT::ResultSet<count> treeA, treeB;
+			RW::ResultSet<count> treeA, treeB;
 
 			treeA = this->exploreTree(resultASetIndex, resultA, true);
 			treeB = this->exploreTree(setIndex, resultB, this->isMutual(resultB));
 
 			if (!treeB.results.empty()) {
-				HT::ResultSet<count> combined = {
+				RW::ResultSet<count> combined = {
 					0,
-					std::vector<HT::Result>(treeA.results)
+					std::vector<RW::Result>(treeA.results)
 				};
 				combined.results.insert(
 					combined.results.end(),
@@ -653,19 +653,19 @@ HT::ResultSet<count> CheapestMutual::exploreTree(
 	}
 
 	if (isSelfMutual)
-		return HT::ResultSet<count>{
+		return RW::ResultSet<count>{
 			0,
 			{self}
 		};
 	else
-		return HT::ResultSet<count>{
+		return RW::ResultSet<count>{
 			0,
 			{}
 		};
 }
 
-HT::Result CheapestMutual::buildInverseResult(
-	const HT::Result& other,
+RW::Result CheapestMutual::buildInverseResult(
+	const RW::Result& other,
 	const std::vector<index>& superSet
 ) {
 	std::set<index> pSet;
@@ -674,7 +674,7 @@ HT::Result CheapestMutual::buildInverseResult(
 		pSet.insert(part);
 	}
 
-	HT::Result result;
+	RW::Result result;
 
 	for (auto part : superSet) {
 		if (pSet.count(part) != 1)
@@ -686,7 +686,7 @@ HT::Result CheapestMutual::buildInverseResult(
 	return result;
 }
 
-void CheapestMutual::calculatePPrime(HT::Result& result) const {
+void CheapestMutual::calculatePPrime(RW::Result& result) const {
 	for (index i = 0; i < this->c.cardPartition2; ++i) {
 		count sum = 0;
 
@@ -701,7 +701,7 @@ void CheapestMutual::calculatePPrime(HT::Result& result) const {
 	}
 }
 
-void CheapestMutual::calculatePPrime(HT::Result& result, int) const {
+void CheapestMutual::calculatePPrime(RW::Result& result, int) const {
 	for (index i = 0; i < this->c.cardPartition2; ++i) {
 		count sum = 0;
 
@@ -714,7 +714,7 @@ void CheapestMutual::calculatePPrime(HT::Result& result, int) const {
 	}
 }
 
-bool CheapestMutual::isMutual(const HT::Result& result) const {
+bool CheapestMutual::isMutual(const RW::Result& result) const {
 	std::set<index> pSet;
 	std::set<index> pSetMaybe;
 
@@ -764,13 +764,13 @@ RecursiveMutual::RecursiveMutual(Correspondences& c)
 }
 
 
-std::vector<HT::Result> RecursiveMutual::run() {
+std::vector<RW::Result> RecursiveMutual::run() {
 	this->weightIndices = this->indexSortWeight();
 
-	HT::Result rootResult = this->createRootResult();
+	RW::Result rootResult = this->createRootResult();
 
-	HT::ResultSet<count> resultSet = this->processTree(0, rootResult);
-	// HT::ResultSet<count> resultSet = this->processTree(0, HT::Result());
+	RW::ResultSet<count> resultSet = this->processTree(0, rootResult);
+	// RW::ResultSet<count> resultSet = this->processTree(0, RW::Result());
 
 	if (resultSet.results.size() < 1
 		|| resultSet.results.front().p.size() < this->graph.getSize()
@@ -795,10 +795,10 @@ std::vector<index> RecursiveMutual::indexSortWeight() const {
 	return weightIndices;
 }
 
-HT::Result RecursiveMutual::createRootResult() const {
+RW::Result RecursiveMutual::createRootResult() const {
 	std::vector<index> p(this->graph.getSize());
 
-	HT::Result result{
+	RW::Result result{
 		std::vector<index>(this->graph.getSize())
 	};
 
@@ -837,7 +837,7 @@ count RecursiveMutual::bfsExpand(index from, index expandInto, std::vector<index
 	return outerWeight;
 }
 
-HT::ResultSet<count> RecursiveMutual::processTree(index setIndex, const HT::Result parent) {
+RW::ResultSet<count> RecursiveMutual::processTree(index setIndex, const RW::Result parent) {
 	for (auto it = this->weightIndices.cbegin(); it != this->weightIndices.cend() - 1; ++it) {
 		if (this->partSets[*it] != setIndex || this->partSets[this->parents[*it]] != setIndex)
 			continue;
@@ -851,14 +851,14 @@ HT::ResultSet<count> RecursiveMutual::processTree(index setIndex, const HT::Resu
 		this->partSets[*it] = ++this->maxSetIndex;
 		this->partSets[this->parents[*it]] = ++this->maxSetIndex;
 
-		HT::Result resultA = this->buildResult(*it, parentSetIndex);
-		HT::Result resultB = this->buildInverseResult(this->parents[*it], parentSetIndex,
+		RW::Result resultA = this->buildResult(*it, parentSetIndex);
+		RW::Result resultB = this->buildInverseResult(this->parents[*it], parentSetIndex,
 			resultA, parent.pPrime);
 
 		bool isMutualA = this->isMutual(resultA);
 		bool isMutualB = this->isMutual(resultB);
 
-		HT::ResultSet<count> treeA, treeB;
+		RW::ResultSet<count> treeA, treeB;
 
 		if (isMutualA)
 			treeA = this->processTree(
@@ -873,9 +873,9 @@ HT::ResultSet<count> RecursiveMutual::processTree(index setIndex, const HT::Resu
 			);
 
 		if (isMutualA && isMutualB) {
-			HT::ResultSet<count> combined = {
+			RW::ResultSet<count> combined = {
 				0,
-				std::vector<HT::Result>(treeA.results)
+				std::vector<RW::Result>(treeA.results)
 			};
 			combined.results.insert(
 				combined.results.end(),
@@ -894,14 +894,14 @@ HT::ResultSet<count> RecursiveMutual::processTree(index setIndex, const HT::Resu
 			this->partSets.swap(previousPartSets);
 	}
 
-	return HT::ResultSet<count>{
+	return RW::ResultSet<count>{
 		0,
 		{parent}
 	};
 }
 
-HT::Result RecursiveMutual::buildResult(index l, index parentSetIndex) {
-	HT::Result result;
+RW::Result RecursiveMutual::buildResult(index l, index parentSetIndex) {
+	RW::Result result;
 
 	this->bfsExpand(l, parentSetIndex, result.p);
 
@@ -910,13 +910,13 @@ HT::Result RecursiveMutual::buildResult(index l, index parentSetIndex) {
 	return result;
 }
 
-HT::Result RecursiveMutual::buildInverseResult(
+RW::Result RecursiveMutual::buildInverseResult(
 	index l,
 	index parentSetIndex,
-	const HT::Result& other,
+	const RW::Result& other,
 	const std::vector<index>& superSet
 ) {
-	HT::Result result;
+	RW::Result result;
 
 	this->bfsExpand(l, parentSetIndex, result.p);
 
@@ -926,7 +926,7 @@ HT::Result RecursiveMutual::buildInverseResult(
 }
 
 
-void RecursiveMutual::calculatePPrime(HT::Result& result) const {
+void RecursiveMutual::calculatePPrime(RW::Result& result) const {
 	for (index i = 0; i < this->c.cardPartition2; ++i) {
 		count sum = 0;
 
@@ -941,7 +941,7 @@ void RecursiveMutual::calculatePPrime(HT::Result& result) const {
 	}
 }
 
-void RecursiveMutual::calculatePPrime(HT::Result& result, int) const {
+void RecursiveMutual::calculatePPrime(RW::Result& result, int) const {
 	for (index i = 0; i < this->c.cardPartition2; ++i) {
 		count sum = 0;
 
@@ -954,7 +954,7 @@ void RecursiveMutual::calculatePPrime(HT::Result& result, int) const {
 	}
 }
 
-bool RecursiveMutual::isMutual(const HT::Result& result) const {
+bool RecursiveMutual::isMutual(const RW::Result& result) const {
 	std::set<index> pSet;
 	std::set<index> pSetMaybe;
 

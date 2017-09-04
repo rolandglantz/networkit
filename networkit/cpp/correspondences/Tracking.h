@@ -717,16 +717,16 @@ protected:
 };
 
 /**
- * Namespace for HierarchicalTree data types.
+ * Namespace for ResultsWrapper data types.
  */
-namespace HT {
+namespace RW {
 	struct Result {
 		std::vector<index> p;
 		std::vector<index> pPrime;
 		count cost;
 
-		bool operator<(const HT::Result& rhs) const { return this->cost < rhs.cost; }
-		bool operator>(const HT::Result& rhs) const { return this->cost > rhs.cost; }
+		bool operator<(const RW::Result& rhs) const { return this->cost < rhs.cost; }
+		bool operator>(const RW::Result& rhs) const { return this->cost > rhs.cost; }
 	};
 
 	template <typename QualityType>
@@ -734,10 +734,10 @@ namespace HT {
 		QualityType quality;
 		std::vector<Result> results;
 
-		bool operator<(const HT::ResultSet<QualityType>& rhs) const {
+		bool operator<(const RW::ResultSet<QualityType>& rhs) const {
 			return this->quality < rhs.quality;
 		}
-		bool operator>(const HT::ResultSet<QualityType>& rhs) const {
+		bool operator>(const RW::ResultSet<QualityType>& rhs) const {
 			return this->quality > rhs.quality;
 		}
 	};
@@ -780,13 +780,13 @@ namespace HT {
 template<class Objective>
 class TopDown {
 public:
-	typedef HT::Result Result;
-	typedef HT::ResultSet<typename Objective::QualityType> ResultSet;
-	typedef HT::Node<typename Objective::QualityType> Node;
+	typedef RW::Result Result;
+	typedef RW::ResultSet<typename Objective::QualityType> ResultSet;
+	typedef RW::Node<typename Objective::QualityType> Node;
 
 	TopDown(Correspondences& c)
 	: c(c),
-		objective(HT::instantiateObjective<Objective>(c)),
+		objective(RW::instantiateObjective<Objective>(c)),
 		parents(c.gomoryHuParent),
 		weights(c.cutWithGomoryHuParent),
 		graph(GHGraph::build(c.gomoryHuParent, c.cutWithGomoryHuParent)),
@@ -1065,10 +1065,10 @@ protected:
 };
 
 template <class Algorithm>
-class HierarchicalTree {
+class ResultsWrapper {
 public:
-	HierarchicalTree() = default;
-	virtual ~HierarchicalTree() = default;
+	ResultsWrapper() = default;
+	virtual ~ResultsWrapper() = default;
 
 	virtual TimestepData::Timestep analyseFirst(const Partition& partition) const {
 		return {
@@ -1115,7 +1115,7 @@ public:
 		Algorithm algorithm(c);
 		for (auto result : algorithm.run()) {
 			timestep.correspondences.push_back(
-				HierarchicalTree<Algorithm>::extractCorrespondence(result.p, result.pPrime, c)
+				ResultsWrapper<Algorithm>::extractCorrespondence(result.p, result.pPrime, c)
 			);
 		}
 
@@ -1169,14 +1169,14 @@ public:
 };
 
 template <class Algorithm>
-class DCGHierarchicalTree {
+class DCGResultsWrapper {
 public:
-	DCGHierarchicalTree(
+	DCGResultsWrapper(
 		const DynamicCommunitiesGenerator& generator,
 		const std::vector<std::vector<index>>& parts
 	) : ownershipExtractor(generator, parts) {
 	}
-	virtual ~DCGHierarchicalTree() = default;
+	virtual ~DCGResultsWrapper() = default;
 
 	virtual DCGTimestepData::Timestep analyseFirst(const Partition& partition) const {
 		TimestepData::Timestep simpleTimestep = this->hierarchicalTree.analyseFirst(partition);
@@ -1203,7 +1203,7 @@ public:
 	}
 protected:
 	DCGOwnershipExtractor ownershipExtractor;
-	HierarchicalTree<Algorithm> hierarchicalTree;
+	ResultsWrapper<Algorithm> hierarchicalTree;
 };
 
 
@@ -1221,30 +1221,30 @@ protected:
  */
 class SystemOptimum {
 public:
-	typedef HT::default_constructor Constructor;
+	typedef RW::default_constructor Constructor;
 	typedef count QualityType;
 
-	QualityType calculateQuality(HT::Result result) const {
+	QualityType calculateQuality(RW::Result result) const {
 		return result.cost;
 	}
 
-	QualityType combineQuality(HT::ResultSet<QualityType> a, HT::ResultSet<QualityType> b) const {
+	QualityType combineQuality(RW::ResultSet<QualityType> a, RW::ResultSet<QualityType> b) const {
 		return a.quality + b.quality;
 	}
 
-	bool expansionStopped(HT::ResultSet<QualityType> r) const {
+	bool expansionStopped(RW::ResultSet<QualityType> r) const {
 		return false;
 	}
 
-	bool isEligible(HT::Result r) const {
+	bool isEligible(RW::Result r) const {
 		return r.p.size() <= 2 || r.pPrime.size() <= 2;
 	}
 
-	bool calculatePPrime(HT::Result r) const {
+	bool calculatePPrime(RW::Result r) const {
 		return true;
 	}
 
-	virtual bool replaceCombined(HT::ResultSet<QualityType> combined, HT::ResultSet<QualityType> parent) const {
+	virtual bool replaceCombined(RW::ResultSet<QualityType> combined, RW::ResultSet<QualityType> parent) const {
 		return parent.quality <= combined.quality;
 	}
 };
@@ -1257,10 +1257,10 @@ public:
  */
 class SystemOptimumZero : public SystemOptimum {
 public:
-	typedef HT::default_constructor Constructor;
+	typedef RW::default_constructor Constructor;
 	typedef count QualityType;
 
-	bool replaceCombined(HT::ResultSet<QualityType> combined, HT::ResultSet<QualityType> parent) const override {
+	bool replaceCombined(RW::ResultSet<QualityType> combined, RW::ResultSet<QualityType> parent) const override {
 		return this->SystemOptimum::replaceCombined(combined, parent)
 			&& combined.quality != 0;
 
@@ -1271,70 +1271,70 @@ public:
 
 class IndividualOptimumStrict {
 public:
-	typedef HT::default_constructor Constructor;
+	typedef RW::default_constructor Constructor;
 	typedef count QualityType;
 
-	QualityType calculateQuality(HT::Result result) const {
+	QualityType calculateQuality(RW::Result result) const {
 		return result.cost;
 	}
 
-	QualityType combineQuality(HT::ResultSet<QualityType> a, HT::ResultSet<QualityType> b) const {
+	QualityType combineQuality(RW::ResultSet<QualityType> a, RW::ResultSet<QualityType> b) const {
 		return std::min(a.quality, b.quality);
 	}
 
-	bool expansionStopped(HT::ResultSet<QualityType> r) const {
+	bool expansionStopped(RW::ResultSet<QualityType> r) const {
 		return false;
 	}
 
-	bool isEligible(HT::Result r) const {
+	bool isEligible(RW::Result r) const {
 		return r.p.size() <= 2 || r.pPrime.size() <= 2;
 	}
 
-	bool calculatePPrime(HT::Result r) const {
+	bool calculatePPrime(RW::Result r) const {
 		return true;
 	}
 
-	bool replaceCombined(HT::ResultSet<QualityType> combined, HT::ResultSet<QualityType> parent) const {
+	bool replaceCombined(RW::ResultSet<QualityType> combined, RW::ResultSet<QualityType> parent) const {
 		return parent.quality < combined.quality;
 	}
 };
 
 class IndividualOptimumWeakened {
 public:
-	typedef HT::default_constructor Constructor;
+	typedef RW::default_constructor Constructor;
 	typedef count QualityType;
 
-	QualityType calculateQuality(HT::Result result) const {
+	QualityType calculateQuality(RW::Result result) const {
 		return result.cost;
 	}
 
-	QualityType combineQuality(HT::ResultSet<QualityType> a, HT::ResultSet<QualityType> b) const {
+	QualityType combineQuality(RW::ResultSet<QualityType> a, RW::ResultSet<QualityType> b) const {
 		return std::min(a.quality, b.quality);
 	}
 
-	bool expansionStopped(HT::ResultSet<QualityType> r) const {
+	bool expansionStopped(RW::ResultSet<QualityType> r) const {
 		return false;
 	}
 
-	bool isEligible(HT::Result r) const {
+	bool isEligible(RW::Result r) const {
 		return r.p.size() <= 2 || r.pPrime.size() <= 2;
 	}
 
-	bool calculatePPrime(HT::Result r) const {
+	bool calculatePPrime(RW::Result r) const {
 		return true;
 	}
 
-	virtual bool replaceCombined(HT::ResultSet<QualityType> combined, HT::ResultSet<QualityType> parent) const {
+	virtual bool replaceCombined(RW::ResultSet<QualityType> combined, RW::ResultSet<QualityType> parent) const {
 		return parent.quality <= combined.quality;
 	}
 };
 
 class IndividualOptimumWeakenedZero : public IndividualOptimumWeakened {
 public:
-	typedef HT::default_constructor Constructor;
+	typedef RW::default_constructor Constructor;
 	typedef count QualityType;
 
-	bool replaceCombined(HT::ResultSet<QualityType> combined, HT::ResultSet<QualityType> parent) const override {
+	bool replaceCombined(RW::ResultSet<QualityType> combined, RW::ResultSet<QualityType> parent) const override {
 		return this->IndividualOptimumWeakened::replaceCombined(combined, parent)
 			&& combined.quality != 0;
 	}
@@ -1356,14 +1356,14 @@ public:
 	CheapestSetsGenerator(Correspondences& c, bool);
 	~CheapestSetsGenerator() = default;
 
-	inline HT::Result& operator*() {
+	inline RW::Result& operator*() {
 		if (!this->reachedEnd && this->resultQueue.empty())
 			this->advance();
 
 		return this->refResultSet(this->resultQueue.top());
 	}
 
-	inline HT::Result* operator->() {
+	inline RW::Result* operator->() {
 		return &**this;
 	}
 
@@ -1416,7 +1416,7 @@ protected:
 	std::vector<index> partSets;
 	index minSetIndex;
 
-	std::vector<HT::Result> sets;
+	std::vector<RW::Result> sets;
 	std::priority_queue<index> resultQueue;
 
 	GHGraph graph;
@@ -1433,7 +1433,7 @@ protected:
 	 */
 	void advance();
 
-	HT::Result& propagateResult(index l, index parentSetIndex);
+	RW::Result& propagateResult(index l, index parentSetIndex);
 
 	count bfsExpand(index from, index expandInto, std::vector<index>& nodes);
 
@@ -1442,7 +1442,7 @@ protected:
 	 *
 	 * Enlarges this->sets if necessary.
 	 */
-	HT::Result& refResultSet(int set);
+	RW::Result& refResultSet(int set);
 };
 
 /**
@@ -1454,34 +1454,34 @@ public:
 	CheapestMutual(Correspondences& c);
 	~CheapestMutual() = default;
 
-	std::vector<HT::Result> run();
+	std::vector<RW::Result> run();
 protected:
 	Correspondences& c;
 
 	std::vector<index> partSets;
 	index maxSetIndex = 0;
 
-	HT::Result createRootResult() const;
+	RW::Result createRootResult() const;
 
-	HT::ResultSet<count> exploreTree(index setIndex, const HT::Result& self, bool isSelfMutual);
+	RW::ResultSet<count> exploreTree(index setIndex, const RW::Result& self, bool isSelfMutual);
 
-	HT::Result buildInverseResult(
-		const HT::Result& other,
+	RW::Result buildInverseResult(
+		const RW::Result& other,
 		const std::vector<index>& superSet
 	);
 
 	/**
 	 * Calculates pPrime from p.
 	 */
-	void calculatePPrime(HT::Result& result) const;
+	void calculatePPrime(RW::Result& result) const;
 	/**
 	 * Calculates pPrime from p; includes all "maybe" (zero-impact) optimal partners in pPrime.
 	 *
 	 * Useful if as many parts as possible should be used.
 	 */
-	void calculatePPrime(HT::Result& result, int) const;
+	void calculatePPrime(RW::Result& result, int) const;
 
-	bool isMutual(const HT::Result& result) const;
+	bool isMutual(const RW::Result& result) const;
 };
 
 /**
@@ -1493,7 +1493,7 @@ public:
 	RecursiveMutual(Correspondences& c);
 	~RecursiveMutual() = default;
 
-	std::vector<HT::Result> run();
+	std::vector<RW::Result> run();
 protected:
 	Correspondences& c;
 
@@ -1509,29 +1509,29 @@ protected:
 
 	std::vector<index> indexSortWeight() const;
 
-	HT::Result createRootResult() const;
+	RW::Result createRootResult() const;
 
 	count bfsExpand(index from, index expandInto, std::vector<index>& nodes);
 
-	HT::ResultSet<count> processTree(index setIndex, const HT::Result result);
+	RW::ResultSet<count> processTree(index setIndex, const RW::Result result);
 
-	HT::Result buildResult(index l, index parentSetIndex);
-	HT::Result buildInverseResult(
+	RW::Result buildResult(index l, index parentSetIndex);
+	RW::Result buildInverseResult(
 		index l,
 		index parentSetIndex,
-		const HT::Result& other,
+		const RW::Result& other,
 		const std::vector<index>& superSet
 	);
 
-	void calculatePPrime(HT::Result& result) const;
+	void calculatePPrime(RW::Result& result) const;
 	/**
 	 * Calculates pPrime from p; includes all "maybe" (zero-impact) optimal partners in pPrime.
 	 *
 	 * Useful if as many parts as possible should be used.
 	 */
-	void calculatePPrime(HT::Result& result, int) const;
+	void calculatePPrime(RW::Result& result, int) const;
 
-	bool isMutual(const HT::Result& result) const;
+	bool isMutual(const RW::Result& result) const;
 };
 
 
@@ -2147,7 +2147,7 @@ public:
 				Algorithm algorithm(c);
 				for (auto corres : algorithm.run()) {
 					result.correspondences.push_back(
-						HierarchicalTree<Algorithm>::extractCorrespondence(corres.p, corres.pPrime, c)
+						ResultsWrapper<Algorithm>::extractCorrespondence(corres.p, corres.pPrime, c)
 					);
 				}
 			}
