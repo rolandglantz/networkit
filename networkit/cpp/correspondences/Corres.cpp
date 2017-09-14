@@ -35,7 +35,7 @@
 #define CONFLICT 1
 #define VALID 2
 
-#define GREEDY 1
+#define GREEDY 0
 #define CHECK 100000
 
 namespace NetworKit {
@@ -1206,9 +1206,9 @@ count Corres::greedyBB(index s, index t, count bestFrac, count currentFrac,
         done = true;
     }
     while(done == false) {
-//        if((numberForwardGreedyDescents >= 1) && (bestFrac > currentFrac)) {
-//            bestFrac = currentFrac;
-//        }
+        // if((numberForwardGreedyDescents >= 1) && (bestFrac > currentFrac)) {
+        //     bestFrac = currentFrac;
+        // }
         count position1 = position;
         // if(numberForwardGreedyDescents == CHECK) {
 	//   TRACE("Initial values of bestFrac and currentFrac are ", bestFrac, " and ", currentFrac);
@@ -1240,7 +1240,7 @@ count Corres::greedyBB(index s, index t, count bestFrac, count currentFrac,
             return(0);
         }
 
-        
+	//std::cout << "GREEDY is " << GREEDY << std::endl;
         if((GREEDY == 1)&&(bestFrac < numberOfElements)) {
             done = true;
         } else {
@@ -1320,7 +1320,7 @@ count Corres::greedyBB(index s, index t, count bestFrac, count currentFrac,
             }
             position++;
         }
-        //std::cout << "Number of forwardGreedyDescents is " << numberForwardGreedyDescents << std::endl;
+        std::cout << "Number of forwardGreedyDescents is " << numberForwardGreedyDescents << std::endl;
         
     }
     if(numberForwardGreedyDescents > maxNumberForwardGreedyDescents) {
@@ -1895,7 +1895,7 @@ bool Corres::readSegmentationNormalizeClusters(std::string filename, Partition& 
   /*                                run                                 */
   /**********************************************************************/
   double Corres::run(const Partition& partitionA, const Partition& partitionB) {
-    int level = 3;
+    int level = 2;
     //level == 1: cuts through bipartite graph, not yet implemented
     //level == 2: nontrivial (one-sided) correspondences
     //level == 3: non-degenerate correspondences
@@ -2009,7 +2009,6 @@ bool Corres::readSegmentationNormalizeClusters(std::string filename, Partition& 
     // getBestBelongsPrime(bestBestBelongs, bestBestBelongsPrime);
     // TRACE("bestBestBelongs is ", bestBestBelongs);
     // TRACE("bestBestBelongsPrime is ", bestBestBelongsPrime);
-        
     return(((double)totalCut)/((double)numberOfElements));
   }
 
