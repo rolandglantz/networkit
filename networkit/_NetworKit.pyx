@@ -2758,6 +2758,131 @@ cdef class LFRGenerator(Algorithm):
 		return gen
 
 
+cdef extern from "cpp/generators/DynamicCommunitiesGenerator.h":
+	cdef cppclass _DCGAffinities "NetworKit::AffinitiesGenerator::Affinities":
+		_DCGAffinities() except +
+
+	cdef cppclass _DCGAffinitiesGenerator "NetworKit::AffinitiesGenerator":
+		_DCGAffinitiesGenerator AffinitiesGenerator() except +
+		_DCGAffinities halfHalf(count k, double w) except +
+		_DCGAffinities halfHalf(count k, double w, vector[vector[index]]& parts) except +
+
+	cdef cppclass _DCGParameters "NetworKit::DynamicCommunitiesGenerator::Parameters":
+		_DCGAffinities affinities
+		count l
+
+		count n
+		double alpha
+		double p_move_v
+
+	cdef cppclass _DynamicCommunitiesGenerator "NetworKit::DynamicCommunitiesGenerator":
+		_DynamicCommunitiesGenerator(_DCGParameters parameters) except +
+		_Partition next() except +
+
+
+cdef class DCGAffinities:
+	cdef _DCGAffinities* _this
+
+	def __cinit__(self, n=0):
+		self._this = new _DCGAffinities()
+
+	def __dealloc__(self):
+		del self._this
+
+	cdef DCGAffinities setThis(self, _DCGAffinities& other):
+		swap[_DCGAffinities](self._this[0], other)
+		return self
+
+
+cdef class DCGAffinitiesGenerator:
+	cdef _DCGAffinitiesGenerator* _this
+
+	def __cinit__(self):
+		self._this = new _DCGAffinitiesGenerator()
+
+	def __dealloc__(self):
+		del self._this
+
+	def halfHalf(self, count k, double w):
+		cdef _DCGAffinities c_affinities = self._this.halfHalf(k, w)
+		affinities = DCGAffinities()
+		return affinities.setThis(c_affinities)
+
+
+cdef class DCGParameters:
+	cdef _DCGParameters* _this
+	cdef DCGAffinities _affinities
+
+	def __cinit__(self, affinities=None, l=0, n=0, alpha=0.0, p_move_v=0.0):
+		self._this = new _DCGParameters()
+		self._affinities = None
+
+		if affinities is not None:
+			self.affinities = affinities
+
+		self.l = l
+		self.n = n
+		self.alpha = alpha
+		self.p_move_v = p_move_v
+
+	def __dealloc__(self):
+		del self._this
+
+	@property
+	def affinities(self):
+		return self._affinities
+	@affinities.setter
+	def affinities(self, DCGAffinities affinities):
+		self._affinities = affinities
+		self._this.affinities = affinities._this[0]
+
+	@property
+	def l(self):
+		return self._this.l
+	@l.setter
+	def l(self, count l):
+		self._this.l = l
+
+	@property
+	def n(self):
+		return self._this.n
+	@n.setter
+	def n(self, count n):
+		self._this.n = n
+
+	@property
+	def alpha(self):
+		return self._this.alpha
+	@alpha.setter
+	def alpha(self, double alpha):
+		self._this.alpha = alpha
+
+	@property
+	def p_move_v(self):
+		return self._this.p_move_v
+	@p_move_v.setter
+	def p_move_v(self, double p_move_v):
+		self._this.p_move_v = p_move_v
+
+
+cdef class DynamicCommunitiesGenerator:
+	cdef _DynamicCommunitiesGenerator* _this
+	cdef DCGParameters _parameters
+
+	def __cinit__(self, DCGParameters parameters):
+		self._parameters = parameters
+		self._this = new _DynamicCommunitiesGenerator(parameters._this[0])
+
+	def __dealloc__(self):
+		del self._this
+
+	@property
+	def parameters(self):
+		return self._parameters
+
+	def next(self):
+		return Partition().setThis(self._this.next())
+
 # cdef extern from "cpp/generators/MultiscaleGenerator.h":
 # 	cdef cppclass _MultiscaleGenerator "NetworKit::MultiscaleGenerator":
 # 		_MultiscaleGenerator(_Graph O) except +
@@ -3085,6 +3210,9 @@ cdef class Correspondences:
 	def __cinit__(self):
 		self._this = new _Correspondences()
 
+	def __dealloc__(self):
+		del self._this
+
 	def getDistributions(self, Partition partition1, Partition partition2):
 		self._this.getDistributions(partition1._this, partition2._this)
 	def run(self, Partition partition1, Partition partition2):
@@ -3104,6 +3232,9 @@ cdef class Corres:
 
 	def __cinit__(self):
 		self._this = new _Corres()
+
+	def __dealloc__(self):
+		del self._this
 
 	def run(self, Partition partition1, Partition partition2):
 		return self._this.run(partition1._this, partition2._this)

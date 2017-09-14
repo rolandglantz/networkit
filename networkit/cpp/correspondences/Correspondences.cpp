@@ -77,7 +77,7 @@ void Correspondences::createToyPartitions(Partition& partitionA, Partition& part
     partitionA.addToSubset(5, 28);
     partitionA.addToSubset(5, 29);
     partitionA.addToSubset(5, 30);
-    
+
     partitionB = Partition(31);
     partitionB.setUpperBound(5);
     partitionB.addToSubset(0, 0);
@@ -119,11 +119,11 @@ void Correspondences::createToyPartitions(Partition& partitionA, Partition& part
 void Correspondences::createPairZeroPartitions(Partition& partitionA, Partition& partitionB) {
     //get seed for random partitions partitionA, partitionB
     unsigned seed = (unsigned) std::chrono::system_clock::now().time_since_epoch().count();
-    
+
     //initialize partitionA
     partitionA = Partition(NR_ELEMENTS);
     partitionA.setUpperBound(NR_CLUSTERS);
-    
+
     //set partitionA
     index indx = 0;
     for(index clusterID1 = 0; clusterID1 < NR_CLUSTERS; clusterID1++) {
@@ -132,7 +132,7 @@ void Correspondences::createPairZeroPartitions(Partition& partitionA, Partition&
             indx++;
         }
     }
-    
+
     //shuffle cluster IDs of partitionA
     std::array<index,NR_CLUSTERS> shuffledClusterIDs1;
     for(index id1 = 0;id1 < NR_CLUSTERS; id1++) {
@@ -140,7 +140,7 @@ void Correspondences::createPairZeroPartitions(Partition& partitionA, Partition&
     }
     shuffle(shuffledClusterIDs1.begin(), shuffledClusterIDs1.end(), std::default_random_engine(seed));
     //\mathcal{B} given by shuffledClusterIDs1[0], ...,  shuffledClusterIDs1[NR_CLUSTERS/2-1]
-    
+
     //get shuffled list of elements in U_B
     std::array<index,NR_ELEMENTS_HALF> shuffledElementsFromB;
     indx = 0;
@@ -151,8 +151,8 @@ void Correspondences::createPairZeroPartitions(Partition& partitionA, Partition&
         }
     }
     shuffle(shuffledElementsFromB.begin(), shuffledElementsFromB.end(), std::default_random_engine(seed));
-    
-    
+
+
     //get shuffled list of elements in U_B'
     std::array<index,NR_ELEMENTS_HALF> shuffledElementsFromB_comp;
     indx = 0;
@@ -163,11 +163,11 @@ void Correspondences::createPairZeroPartitions(Partition& partitionA, Partition&
         }
     }
     shuffle(shuffledElementsFromB_comp.begin(), shuffledElementsFromB_comp.end(), std::default_random_engine(seed));
-    
+
     //initialize partitionB
     partitionB = Partition(NR_ELEMENTS);
     partitionB.setUpperBound(NR_CLUSTERS);
-    
+
     //shuffle cluster IDs of partitionB
     std::array<index,NR_CLUSTERS> shuffledClusterIDs2;
     for(index id2 = 0;id2 < NR_CLUSTERS; id2++) {
@@ -175,7 +175,7 @@ void Correspondences::createPairZeroPartitions(Partition& partitionA, Partition&
     }
     shuffle(shuffledClusterIDs2.begin(), shuffledClusterIDs2.end(), std::default_random_engine(seed));
     //\mathcal{B}' given by shuffledClusterIDs2[NR_CLUSTERS/2], ...,  shuffledClusterIDs2[NR_CLUSTERS-1]
-    
+
     //set partitionB
     indx = 0;
     for(index i = 0; i <  NR_CLUSTERS_HALF; i++) {
@@ -200,13 +200,13 @@ void Correspondences::createPairZeroPartitions(Partition& partitionA, Partition&
 /**********************************************************************/
 void Correspondences::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA, const Partition& tmpNormalPartitionB,
                                             Partition& normalPartitionA, Partition& normalPartitionB) {
-    
-    
+
+
     count cardTmpPartitionA = tmpNormalPartitionA.upperBound();
     count cardTmpPartitionB = tmpNormalPartitionB.upperBound();
     std::map<index, count> cardinalityOfTmpClusterA = tmpNormalPartitionA.subsetSizeMap();
     std::map<index, count> cardinalityOfTmpClusterB = tmpNormalPartitionB.subsetSizeMap();
-    
+
     //represent clusters by sets, partitions by vectors of sets
     std::vector<std::set<index>> clustersOfTmpPartitionA(cardTmpPartitionA);
     std::vector<std::set<index>> clustersOfTmpPartitionB(cardTmpPartitionB);
@@ -216,14 +216,11 @@ void Correspondences::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA
     for(index i2 = 0; i2 < cardTmpPartitionB; i2++) {
         clustersOfTmpPartitionB[i2] = tmpNormalPartitionB.getMembers(i2);
     }
-    
+
     //find identical twins
-    std::vector<bool> identicalTwinA;
-    identicalTwinA.resize(tmpNormalPartitionA.upperBound());
-    std::fill(identicalTwinA.begin(), identicalTwinA.end(), false);
-    std::vector<bool> identicalTwinB;
-    identicalTwinB.resize(tmpNormalPartitionB.upperBound());
-    std::fill(identicalTwinB.begin(), identicalTwinB.end(), false);
+    std::vector<bool> identicalTwinA(tmpNormalPartitionA.upperBound(), false);
+    std::vector<bool> identicalTwinB(tmpNormalPartitionB.upperBound(), false);
+
     count nrIdenticalTwins = 0;
     for(index i1 = 0; i1 < cardTmpPartitionA; i1++) {
         for(index i2 = 0; i2 < cardTmpPartitionB; i2++) {
@@ -239,7 +236,7 @@ void Correspondences::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA
         }
     }
     TRACE("XXX:Number of identical twins is ", nrIdenticalTwins);
-    
+
     //get relation between old and new cluster IDs
     std::vector<index> newClusterID_A(cardTmpPartitionA, cardTmpPartitionA);//no such cluster
     count nrElementsInTwins = 0;
@@ -251,7 +248,7 @@ void Correspondences::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA
         } else {
             nrElementsInTwins += cardinalityOfTmpClusterA[i1];
         }
-        
+
     }
     std::vector<index> newClusterID_B(cardTmpPartitionB, cardTmpPartitionB);//no such cluster
     newClusterID = 0;
@@ -261,7 +258,7 @@ void Correspondences::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA
             newClusterID++;
         }
     }
-    
+
     //write normalPartitionA
     normalPartitionA = Partition(tmpNormalPartitionA.numberOfElements() - nrElementsInTwins);
     normalPartitionA.setUpperBound(tmpNormalPartitionA.numberOfSubsets() - nrIdenticalTwins);
@@ -273,7 +270,7 @@ void Correspondences::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA
             newElementID++;
         }
     }
-    
+
     //write normalPartitionB
     normalPartitionB = Partition(tmpNormalPartitionB.numberOfElements() - nrElementsInTwins);
     normalPartitionB.setUpperBound(tmpNormalPartitionB.numberOfSubsets() - nrIdenticalTwins);
@@ -293,16 +290,16 @@ void Correspondences::kickOutIdenticalTwins(const Partition& tmpNormalPartitionA
 void Correspondences::normalizeElements(const Partition& partitionA, const Partition& partitionB,
                                         Partition& normalPartitionA, Partition& normalPartitionB,
                                         std::vector<index>& old2newElement) {
-    
+
     //TRACE("partitionA is ", partitionA.getVector());
     //TRACE("partitionB is ", partitionB.getVector());
-    
+
     //consecutively renumber the elements of partitionA such that
     //the new number of any element in cluster i is smaller than
     //the new number of any element in cluster j whenever i < j
     std::map<index, count> cardinalityOfClusterA = partitionA.subsetSizeMap();
-    std::vector<count> currSlotInCluster(partitionA.numberOfSubsets(), 0);
-    for(count cluster = 1; cluster < partitionA.numberOfSubsets(); cluster++) {
+    std::vector<count> currSlotInCluster(partitionA.upperBound(), 0);
+    for(count cluster = 1; cluster < partitionA.upperBound(); cluster++) {
         currSlotInCluster[cluster] = currSlotInCluster[cluster-1] + cardinalityOfClusterA[cluster-1];
     }
     for(count oldElement = 0; oldElement < partitionA.numberOfElements(); oldElement++) {
@@ -310,29 +307,31 @@ void Correspondences::normalizeElements(const Partition& partitionA, const Parti
         //std::cout << "oldElement is " << oldElement << " and old2newElement[oldElement] is " << old2newElement[oldElement] << std::endl;
         (currSlotInCluster[partitionA.subsetOf(oldElement)])++;
     }
-    
+
     //normalization of partitionA w.r.t newElementNumber
-    Partition tmpNormalPartitionA = Partition(partitionA.numberOfElements());
-    tmpNormalPartitionA.setUpperBound(partitionA.numberOfSubsets());
+    // Partition tmpNormalPartitionA = Partition(partitionA.numberOfElements());
+    normalPartitionA = Partition(partitionA.numberOfElements());
+    normalPartitionA.setUpperBound(partitionA.upperBound());
     for(count oldElement = 0; oldElement < partitionA.numberOfElements(); oldElement++) {
-        tmpNormalPartitionA.addToSubset(partitionA.subsetOf(oldElement), old2newElement[oldElement]);
+        normalPartitionA.addToSubset(partitionA.subsetOf(oldElement), old2newElement[oldElement]);
     }
-    
+
     //normalization of partitionB w.r.t newElementNumber
-    Partition  tmpNormalPartitionB = Partition(partitionB.numberOfElements());
-    tmpNormalPartitionB.setUpperBound(partitionB.numberOfSubsets());
+    // Partition tmpNormalPartitionB = Partition(partitionB.numberOfElements());
+    normalPartitionB = Partition(partitionB.numberOfElements());
+    normalPartitionB.setUpperBound(partitionB.upperBound());
     for(count oldElement = 0; oldElement < partitionB.numberOfElements(); oldElement++) {
-        tmpNormalPartitionB.addToSubset(partitionB.subsetOf(oldElement), old2newElement[oldElement]);
+        normalPartitionB.addToSubset(partitionB.subsetOf(oldElement), old2newElement[oldElement]);
     }
-    
-    kickOutIdenticalTwins(tmpNormalPartitionA, tmpNormalPartitionB, normalPartitionA, normalPartitionB);
+
+    // kickOutIdenticalTwins(tmpNormalPartitionA, tmpNormalPartitionB, normalPartitionA, normalPartitionB);
 }
 
 /**********************************************************************/
 /*                           getDistributions                         */
 /**********************************************************************/
 void Correspondences::getDistributions(Partition& partition1, Partition& partition2) {
-    
+
     cardPartition1 = partition1.upperBound();
     cardPartition2 = partition2.upperBound();
     cardPartition2Dec = cardPartition2 - 1;
@@ -352,7 +351,7 @@ void Correspondences::getDistributions(Partition& partition1, Partition& partiti
             (cardinalityOfCluster2HalfCeil[i2])++;
         }
     }
-    
+
     //represent clusters by sets, partitions by vectors of sets
     std::vector<std::set<index>> clustersOfPartition1(cardPartition1);
     std::vector<std::set<index>> clustersOfPartition2(cardPartition2);
@@ -362,11 +361,11 @@ void Correspondences::getDistributions(Partition& partition1, Partition& partiti
     for(index i2 = 0; i2 < cardPartition2; i2++) {
         clustersOfPartition2[i2] = partition2.getMembers(i2);
     }
-    
+
     //Get distributions from vectors of sets
-    distributions.resize(cardPartition1, std::vector<count> (cardPartition2));
-    distributionsPrime.resize(cardPartition2, std::vector<count> (cardPartition1));
-    
+    distributions.assign(cardPartition1, std::vector<count> (cardPartition2));
+    distributionsPrime.assign(cardPartition2, std::vector<count> (cardPartition1));
+
     for(index i1 = 0; i1 < cardPartition1; i1++) {
         for(index i2 = 0; i2 < cardPartition2; i2++) {
             std::vector<index> interset;
@@ -386,7 +385,7 @@ void Correspondences::getDistributions(Partition& partition1, Partition& partiti
 /*                         makeBipartiteGraph                         */
 /**********************************************************************/
 void Correspondences::makeBipartiteGraph(Partition& partition1, Partition& partition2) {
-    
+
     //for each cluster i1 in partition1 find the neighboring (intersecting) clusters in partition 2
     bipartForwardNeigh.resize(cardPartition1);
     for(index i1 = 0; i1 < cardPartition1; i1++) {
@@ -407,7 +406,7 @@ void Correspondences::makeBipartiteGraph(Partition& partition1, Partition& parti
         }
         (bipartForwardNeigh[i1])[counter] = cardPartition2; //no valid neighbor
     }
-    
+
     //for each cluster i2 in partition2 find the neighboring (intersecting) clusters in partition 1
     bipartBackwardNeigh.resize(cardPartition2);
     for(index i2 = 0; i2 < cardPartition2; i2++) {
@@ -465,7 +464,7 @@ count Correspondences::incrementS2(index newCluster) {
         //update distriB_s
         count oldDistrib_s = distriB_s[partner2];
         (distriB_s[partner2])+= distributions[newCluster][partner2];
-        
+
         //update incBound_t
         if((distriB_s[partner2] >= cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_s < cardinalityOfCluster2HalfCeil[partner2])) {
             index partner1 = (bipartBackwardNeigh[partner2])[0];
@@ -479,7 +478,7 @@ count Correspondences::incrementS2(index newCluster) {
 	counter2++;
         partner2 = (bipartForwardNeigh[newCluster])[counter2];
     }
-    
+
     //compute fragmentation of correspondence
     fracInter = 0;
     for(index i2 = 0; i2 < cardPartition2; i2++) {
@@ -500,7 +499,7 @@ count Correspondences::incrementT2(index newCluster) {
         //update distriB_t
         count oldDistrib_t = distriB_t[partner2];
         (distriB_t[partner2])+= distributions[newCluster][partner2];
-        
+
         //update incBound_s
         if((distriB_t[partner2] >= cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_t < cardinalityOfCluster2HalfCeil[partner2])) {
             index partner1 = (bipartBackwardNeigh[partner2])[0];
@@ -533,7 +532,7 @@ void Correspondences::decrementS2(index oldCluster) {
         //update distriB_s
         count oldDistrib_s = distriB_s[partner2];
         (distriB_s[partner2])-= distributions[oldCluster][partner2];
-        
+
         //update incBound_t
         if((distriB_s[partner2] < cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_s >= cardinalityOfCluster2HalfCeil[partner2])) {
             index partner1 = (bipartBackwardNeigh[partner2])[0];
@@ -557,11 +556,11 @@ void Correspondences::decrementT2(index oldCluster) {
     index partner2 = (bipartForwardNeigh[oldCluster])[0];
     index counter2 = 0;
     while(partner2 != cardPartition2) {
-        
+
         //update distriB_t
         count oldDistrib_t = distriB_t[partner2];
         (distriB_t[partner2])-= distributions[oldCluster][partner2];
-        
+
         //update incBound_s
         if((distriB_t[partner2] < cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_t >= cardinalityOfCluster2HalfCeil[partner2])) {
             index partner1 = (bipartBackwardNeigh[partner2])[0];
@@ -588,7 +587,7 @@ count Correspondences::incrementS3(index newCluster) {
         //update distriB_s
         count oldDistrib_s = distriB_s[partner2];
          (distriB_s[partner2])+= distributions[newCluster][partner2];
-        
+
         //update incBound_t and numberPartnersOfS
         if((distriB_s[partner2] >= cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_s < cardinalityOfCluster2HalfCeil[partner2])) {
             numberPartnersOfS++;
@@ -628,7 +627,7 @@ count Correspondences::incrementT3(index newCluster) {
         //update distriB_t
         count oldDistrib_t = distriB_t[partner2];
         (distriB_t[partner2])+= distributions[newCluster][partner2];
-        
+
         //update incBound_s and numberPartnersOfT
         if((distriB_t[partner2] >= cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_t < cardinalityOfCluster2HalfCeil[partner2])) {
             numberPartnersOfT++;
@@ -667,7 +666,7 @@ void Correspondences::decrementS3(index oldCluster) {
         //update distriB_s
         count oldDistrib_s = distriB_s[partner2];
         (distriB_s[partner2])-= distributions[oldCluster][partner2];
-        
+
         //update incBound_t and numberPartnersOfS
         if((distriB_s[partner2] < cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_s >= cardinalityOfCluster2HalfCeil[partner2])) {
             numberPartnersOfS--;
@@ -692,11 +691,11 @@ void Correspondences::decrementT3(index oldCluster) {
     index partner2 = (bipartForwardNeigh[oldCluster])[0];
     index counter2 = 0;
     while(partner2 != cardPartition2) {
-        
+
         //update distriB_t
         count oldDistrib_t = distriB_t[partner2];
         (distriB_t[partner2])-= distributions[oldCluster][partner2];
-        
+
         //update incBound_s and numberPartnersOfT
         if((distriB_t[partner2] < cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_t >= cardinalityOfCluster2HalfCeil[partner2])) {
             numberPartnersOfT--;
@@ -726,7 +725,7 @@ count Correspondences::incrementS4(index newCluster) {
         //update distriB_s
         count oldDistrib_s = distriB_s[partner2];
         (distriB_s[partner2])+= distributions[newCluster][partner2];
-        
+
         //update incBound_t, distriB_sPrime
         if((distriB_s[partner2] >= cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_s < cardinalityOfCluster2HalfCeil[partner2])) {
             index partner1 = (bipartBackwardNeigh[partner2])[0];
@@ -738,7 +737,7 @@ count Correspondences::incrementS4(index newCluster) {
                 partner1 = (bipartBackwardNeigh[partner2])[counter1];
             }
         }
-        
+
         //update belongsPrime and status
         if((distriB_s[partner2] > cardinalityOfCluster2HalfFloor[partner2]) && (belongsPrime[partner2] == 0)) {
             belongsPrime[partner2] = 1;
@@ -755,7 +754,7 @@ count Correspondences::incrementS4(index newCluster) {
         counter2++;
         partner2 = (bipartForwardNeigh[newCluster])[counter2];
     }
-    
+
     count numberBelongs2sCovered = 0;
     for(count i1 = 0; i1 < cardPartition1; i1++) {
         if((belongs[i1] == 1) && (distriB_sPrime[i1] >= cardinalityOfCluster1HalfCeil[i1])) {
@@ -788,7 +787,7 @@ count Correspondences::incrementT4(index newCluster) {
         //update distriB_t
         count oldDistrib_t = distriB_t[partner2];
         (distriB_t[partner2])+= distributions[newCluster][partner2];
-        
+
         //update incBound_s, distriB_tPrime and numberBelongs2tCovered
         if((distriB_t[partner2] >= cardinalityOfCluster2HalfFloor[partner2]) && (oldDistrib_t < cardinalityOfCluster2HalfFloor[partner2])) {
             index partner1 = (bipartBackwardNeigh[partner2])[0];
@@ -805,7 +804,7 @@ count Correspondences::incrementT4(index newCluster) {
                 partner1 = (bipartBackwardNeigh[partner2])[counter1];
             }
         }
-        
+
         //update belongsPrime and status
         if((distriB_t[partner2] > cardinalityOfCluster2HalfFloor[partner2]) && (belongsPrime[partner2] == 0)) {
             belongsPrime[partner2] = 2;
@@ -855,7 +854,7 @@ void Correspondences::decrementS4(index oldCluster) {
         //update distriB_s
         count oldDistrib_s = distriB_s[partner2];
         (distriB_s[partner2])-= distributions[oldCluster][partner2];
-        
+
         //update incBound_t, distriB_sPrime
         if((distriB_s[partner2] < cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_s >= cardinalityOfCluster2HalfCeil[partner2])) {
             index partner1 = (bipartBackwardNeigh[partner2])[0];
@@ -867,7 +866,7 @@ void Correspondences::decrementS4(index oldCluster) {
                 partner1 = (bipartBackwardNeigh[partner2])[counter1];
             }
         }
-        
+
         //update belongsPrime
         if((distriB_s[partner2] <= cardinalityOfCluster2HalfFloor[partner2]) &&
            (belongsPrime[partner2] == 1)) {
@@ -891,7 +890,7 @@ void Correspondences::decrementT4(index oldCluster) {
         //update distriB_t
         count oldDistrib_t = distriB_t[partner2];
         (distriB_t[partner2])-= distributions[oldCluster][partner2];
-        
+
         //update incBound_s, distriB_tPrime
         if((distriB_t[partner2] < cardinalityOfCluster2HalfCeil[partner2]) && (oldDistrib_t >= cardinalityOfCluster2HalfCeil[partner2])) {
             index partner1 = (bipartBackwardNeigh[partner2])[0];
@@ -917,13 +916,13 @@ void Correspondences::decrementT4(index oldCluster) {
 /*                               potFracs                             */
 /**********************************************************************/
 count Correspondences::potFracs(count& sFracPotNew, count& tFracPotNew) {
-  //srand (time(NULL));  
+  //srand (time(NULL));
   std::vector<count> sFracPot(cardPartition1);
   std::vector<count> tFracPot(cardPartition1);
 
   std::fill(sFracPot.begin(), sFracPot.end(), 0);
   std::fill(tFracPot.begin(), tFracPot.end(), 0);
-    
+
     for(count i2 = 0; i2 < cardPartition2; i2++) {
         index counter = 0;
         index partner1 = (bipartBackwardNeigh[i2])[0];
@@ -954,8 +953,8 @@ count Correspondences::potFracs(count& sFracPotNew, count& tFracPotNew) {
             }
         }
     }
-    
-    
+
+
        // index bestCluster1=cardPartition1;//no such cluster
        // count maxDiff = 0;//absolute difference between sFracPot and tFracPot
        // for(index i1 = 0; i1 < cardPartition1; i1++) {
@@ -1025,16 +1024,16 @@ index Correspondences::greedyDescent3(index s, index t, count& bestFrac, count& 
             } else {
                 status = (*this.*incrementT)(newCluster);
             }
-            
+
             currentFrac = getBoundPeak();
             if((status == VALID) && (fracInter < bestFrac)) {
                 bestFrac = fracInter;
                 resetBestBelongsMutual(bestBelongs, sWon);
             }
             position++;
-            
+
         } else {//newCluster == cardPartition1, i.e., the s-t cut is complete
-            
+
             //check if S has canonical partners
             bool lonely_s = true;
             index partner2 = 0;
@@ -1044,7 +1043,7 @@ index Correspondences::greedyDescent3(index s, index t, count& bestFrac, count& 
                 }
                 partner2++;
             }
-            
+
             //if not, find best partner for s
             if(lonely_s == true) {
                 //std::cout << "lonely s" << std::endl;
@@ -1070,7 +1069,7 @@ index Correspondences::greedyDescent3(index s, index t, count& bestFrac, count& 
                     }
                     partner2++;
                 }
-                
+
                 //is not find best partner for t
                 if(lonely_t == true) {
                     //std::cout << "lonely t" << std::endl;
@@ -1091,7 +1090,7 @@ index Correspondences::greedyDescent3(index s, index t, count& bestFrac, count& 
             if(currentFrac <  bestFrac) {
                 bestFrac = currentFrac;
                 std::copy(belongs.begin(), belongs.end(), bestBelongs.begin());
-                
+
                 //                for(count i1 = 0; i1 < cardPartition1; i1++) {
                 //                    std::cout << "   belongs[i1] is " << belongs[i1] << std::endl;
                 //                }
@@ -1151,7 +1150,7 @@ index Correspondences::greedyDescent4(index s, index t, count& bestFrac, count& 
             //                if(belongsPrime[i2] == 1) std::cout << i2 + 1 << "' belongs to s" << std::endl;
             //                if(belongsPrime[i2] == 2) std::cout << i2 + 1 << "' belongs to t" << std::endl;
             //            }
-            
+
 
             if(status != CONFLICT) {
                 currentFrac = getBoundPeak();
@@ -1199,7 +1198,7 @@ count Correspondences::greedyBB(index s, index t, count bestFrac, count currentF
     //next vector is for keeping track of when clusters were inserted
     std::vector<index> position2cluster(maxPosition, cardPartition1);//cardPartition1 means no cluster
     std::vector<bool> doneWith(maxPosition, false);//needed to avoid infinite loops
-    
+
     count numberForwardGreedyDescents = 0;
     bool done = false;
     if(currentFrac == bestFrac) {
@@ -1215,7 +1214,7 @@ count Correspondences::greedyBB(index s, index t, count bestFrac, count currentF
 	// }
         position = (*this.*greedyDescent)(s, t, bestFrac, currentFrac, position2cluster, position, bestBelongs,
                                           incrementS, incrementT, doneWith);
-        
+
         if(position >= position1) {
             numberForwardGreedyDescents ++;
         }
@@ -1228,19 +1227,19 @@ count Correspondences::greedyBB(index s, index t, count bestFrac, count currentF
 	// if(numberForwardGreedyDescents >= CHECK + 10) {
 	//   TRACE("taking too long");
 	//    exit(0);
-	//  }        
+	//  }
 //        if(currentFrac >= bestFrac) {
 //            std::cout << "   backtracking because of high currentFrac" << std::endl;
 //        } else {
 //            std::cout << "   backtracking because of conflict" << std::endl;
 //        }
 //        std::cout << std::endl;
-        
+
         if(bestFrac == 0) {
             return(0);
         }
 
-        
+
         if((GREEDY == 1)&&(bestFrac < numberOfElements)) {
             done = true;
         } else {
@@ -1267,7 +1266,7 @@ count Correspondences::greedyBB(index s, index t, count bestFrac, count currentF
                     doneWith[position] = false;
                     position--;
                 }
-                
+
                 if(doneWith[position] == false) {//new first step of extension
                     count status = 0;
                     //std::cout << "bin drin" << std::endl;
@@ -1321,7 +1320,7 @@ count Correspondences::greedyBB(index s, index t, count bestFrac, count currentF
             position++;
         }
         //std::cout << "Number of forwardGreedyDescents is " << numberForwardGreedyDescents << std::endl;
-        
+
     }
     if(numberForwardGreedyDescents > maxNumberForwardGreedyDescents) {
         maxNumberForwardGreedyDescents = numberForwardGreedyDescents;
@@ -1388,7 +1387,7 @@ count Correspondences::getQualityTrivialSolutions3(index s, index t, bool& tWins
 /*                    getQualityTrivialSolutions4                     */
 /**********************************************************************/
 count Correspondences::getQualityTrivialSolutions4(index s, index t, bool& tWins) {
-    
+
     count qualityTrivialSolutions = numberOfElements;
     count neigh = (bipartForwardNeigh[s])[0];
     count counter = 0;
@@ -1445,7 +1444,7 @@ count Correspondences::minCut4(index s, index t, std::vector<int>& bestBelongs,
     std::fill(distriB_t.begin(), distriB_t.end(), 0);
     std::fill(distriB_sPrime.begin(), distriB_sPrime.end(), 0);
     std::fill(distriB_tPrime.begin(), distriB_tPrime.end(), 0);
-    
+
     std::fill(incBound_s.begin(), incBound_s.end(), 0);
     std::fill(incBound_t.begin(), incBound_t.end(), 0);
 //    std::fill(  totalDamage_s.begin(),   totalDamage_s.end(), 0);
@@ -1462,7 +1461,7 @@ count Correspondences::minCut4(index s, index t, std::vector<int>& bestBelongs,
     numberBelongs2t = 0;
     numberPartnersOfS = 0;
     numberPartnersOfT = 0;
-    
+
     (*this.*incrementS)(s);
     (*this.*incrementT)(t);
     if(cardPartition1 > 2) {
@@ -1470,13 +1469,13 @@ count Correspondences::minCut4(index s, index t, std::vector<int>& bestBelongs,
         count qualityTrivialSolutions = (*this.*getQualityTrivialSolutions)(s, t, tWins);
         count minNontrivCut = greedyBB(s, t, qualityTrivialSolutions, getBoundPeak(), bestBelongs,
                                        incrementS, incrementT, decrementS, decrementT, greedyDescent);
-        if(minNontrivCut < numberOfElements) {
-            //std::cout << "Weight of cut and qualityTrivialSolutions is " << minNontrivCut << " and " << qualityTrivialSolutions << std::endl;
-            std::cout << "Weight of cut is " << minNontrivCut << std::endl;
-        } else {
-            std::cout << "No correspondence found" << std::endl;
-        }
-        
+        // if(minNontrivCut < numberOfElements) {
+        //     // std::cout << "Weight of cut and qualityTrivialSolutions is " << minNontrivCut << " and " << qualityTrivialSolutions << std::endl;
+        //     std::cout << "Weight of cut is " << minNontrivCut << std::endl;
+        // } else {
+        //     std::cout << "No correspondence found" << std::endl;
+        // }
+
         if(minNontrivCut < qualityTrivialSolutions) {
             return(minNontrivCut);
         } else {
@@ -1505,7 +1504,7 @@ count Correspondences::minCut4(index s, index t, std::vector<int>& bestBelongs,
 void Correspondences::bucketSort(count cMax,
                                  std::vector<count>& gomoryHuParent, std::vector<count>& cutWithGomoryHuParent,
                                  std::vector<count>& sortedGomoryHuParent, std::vector<count>& sortedCutWithGomoryHuParent) {
-    
+
     std::vector<std::vector<index> > bucket(cMax+1);
     for(count i = 0; i < cardPartition1; i++) {
         if(cutWithGomoryHuParent[i] <= cMax) {
@@ -1546,27 +1545,27 @@ count Correspondences::gusfield(std::vector<index>& gomoryHuParent, std::vector<
                                                                                                         std::vector<int>& bestBelongs,
                                                                                                         count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
                                                                                                         std::vector<bool>& doneWith))) {
- 
+
  //belongs[] expresses membership of a cluster $c$ from partition1 as follows.
  //belongs[c] = 1: $c \in $\mathcal{B}_s$
  //belongs[c] = 2: $c \in $\mathcal{B}_t$
  //belongs[c] = 0: $c \notin $\mathcal{B}_s$, $c \notin $\mathcal{B}_t$
  belongs.resize(cardPartition1);
- 
+
  //belongsPrime[] expresses membership of a cluster $c'$ from $\mathcal{B}' (partition2) .
  //belongsPrime[c] = 1: $c \in $\mathcal{B}'_s$
  //belongsPrime[c] = 2: $c \in $\mathcal{B}'_t$
  //belongsPrime[c] = 0: $c \notin $\mathcal{B}'_s$, $c \notin $\mathcal{B}'_t$
  belongsPrime.resize(cardPartition2);
- 
+
  distriB_s.resize(cardPartition2); //distribution of U_{\mathcal{B}_s} over the clusters of partition2
  distriB_t.resize(cardPartition2); //distribution of U_{\mathcal{B}_t} over the clusters of partition2
  distriB_sPrime.resize(cardPartition1); //distribution of U_{\mathcal{B}'_s} over the clusters of partition1
  distriB_tPrime.resize(cardPartition1); //distribution of U_{\mathcal{B}'_t} over the clusters of partition1
- 
+
  //sFracPot.resize(cardPartition1, 0);
  //tFracPot.resize(cardPartition1, 0);
- 
+
  incBound_s.resize(cardPartition1, 0);
  incBound_t.resize(cardPartition1, 0);
 // totalDamage_s.resize(cardPartition1, 0);
@@ -1575,12 +1574,12 @@ count Correspondences::gusfield(std::vector<index>& gomoryHuParent, std::vector<
 // damage_t.resize(cardPartition2, std::vector<count> (cardPartition1));
 
  maxNumberForwardGreedyDescents = 0;
- 
+
  //build first Gomory-Hu tree (star with vertex 0 in the center
  for(index s = 1; s < cardPartition1; s++) {
      gomoryHuParent[s] = 0;
  }
- 
+
  //rebuild the Gomory-Hu tree
  bestBestBelongs.resize(cardPartition1, 0);
  count cMin = numberOfElements;
@@ -1591,14 +1590,14 @@ count Correspondences::gusfield(std::vector<index>& gomoryHuParent, std::vector<
      //TRACE(" s und t sind ", s, " und  ", t);
      std::vector<int> bestBelongs(cardPartition1, 0);//best belongs per s-t cut
      //std::cout << "s and t are " << s << " and " << t << std::endl;
-     
+
      //std::cout << "cardinalityOfCluster1[3] is " << cardinalityOfCluster1[3] << std::endl;
      //std::cout << "cardinalityOfCluster1[5] is " << cardinalityOfCluster1[3] << std::endl;
      count c = minCut4(s, t, bestBelongs, incrementS, incrementT, decrementS, decrementT, getQualityTrivialSolutions, greedyDescent);
      //std::cout << std::endl;
      totalCut += c;
      //TRACE("   minCut zwischen ", s, " und  ", t, " ist ", c);
-     
+
      //TRACE("   bestBelongs is ", bestBelongs);
      cutWithGomoryHuParent[s] = c;//label edge of Gomory-Hu tree
      if(c < cMin) {//update value of minimal Cut
@@ -1620,30 +1619,30 @@ count Correspondences::gusfield(std::vector<index>& gomoryHuParent, std::vector<
      //            }
      //        }
      for(index i = 0; i < cardPartition1; i++) {
-         if((i != s)&&(gomoryHuParent[i] == t)) {//i has same parent as s, that is t
+         if(i != s && gomoryHuParent[i] == t) {//i has same parent as s, that is t
              if(bestBelongs[i] == 1) {//i is on the same side of the cut as s
                  //TRACE("       gomoryHuParent of ", i, " is set to ", s);
                  gomoryHuParent[i] = s;
              }
          }
      }
-     if(bestBelongs[gomoryHuParent[t]] == 1) {
+     if(gomoryHuParent[t] < gomoryHuParent.size() && bestBelongs[gomoryHuParent[t]] == 1) {
          gomoryHuParent[s] = gomoryHuParent[t];
          gomoryHuParent[t] = s;
          cutWithGomoryHuParent[s] = cutWithGomoryHuParent[t];
          cutWithGomoryHuParent[t] = c;
      }
-     
+
  }
- 
+
  //TRACE("gomoryHuParent is ", gomoryHuParent);
  //TRACE("cutWithGomoryHuParent is ", cutWithGomoryHuParent);
  //TRACE("cardPartition1, cardPartition2, cMin, cMax, totalCut and numberOfElements are ", cardPartition1, ", ", cardPartition2, ", ", cMin, ", ", cMax, ", ", totalCut, " and ", numberOfElements);
- 
+
  //sort gomoryHuParent, cutWithGomoryHuParent
  //bucketSort(cMax, gomoryHuParent, cutWithGomoryHuParent, sortedGomoryHuParent, sortedCutWithGomoryHuParent);
-  
-std::cout << "total cut has weight " << totalCut << std::endl;
+
+// std::cout << "total cut has weight " << totalCut << std::endl;
 return(totalCut);
 }
 
@@ -1690,7 +1689,7 @@ void Correspondences::evaluateCorrespondence(std::vector<int>& bestBelongs, std:
             elementCardinalityA+= cardinalityOfCluster1[i1];
         }
     }
-    
+
     //cardinalities w.r.t. bestBelongsPrime
     count clusterCardinalityAPrime = 0;
     count elementCardinalityAPrime = 0;
@@ -1700,7 +1699,7 @@ void Correspondences::evaluateCorrespondence(std::vector<int>& bestBelongs, std:
             elementCardinalityAPrime+= cardinalityOfCluster2[i2];
         }
     }
-    
+
     //go with $\mathcal{B}$, as opposed to $\mathcal{C} \setminus \mathcal{B}$, if $U_{\mathcal{B}}$ has fewer elements
     count elementCardinalityB = numberOfElements - elementCardinalityA;
     if(elementCardinalityA <= elementCardinalityB) {
@@ -1725,15 +1724,15 @@ void Correspondences::evaluateCorrespondence(std::vector<int>& bestBelongs, std:
 /**********************************************************************/
 double Correspondences::evaluateAllCorrespondences(std::vector<index>& gomoryHuParent,
 					  std::vector<count>& cutWithGomoryHuParent) {
-    
+
   //2D vector to store the number of clusters in partition1 vs number of clusters in partition2
   // for each correspondence
   //entry at (i1, i2) stands for number of such correspondences
   std::vector<std::vector<count> > pairs(cardPartition1, std::vector<index>(cardPartition2,0));
-    
+
   //2D vector to store total dissimilarities corresponding to 2D vector pairs
   std::vector<std::vector<count> > dissim(cardPartition1, std::vector<index>(cardPartition2));
-    
+
   count counter = 0;
   count totalDissimilarity = 0;
   //std::cout << std::endl;
@@ -1742,15 +1741,15 @@ double Correspondences::evaluateAllCorrespondences(std::vector<index>& gomoryHuP
       counter++;
       //find bestBelongs, i.e., clusters on the i1-side of Gomory-Hu tree
       std::vector<int> bestBelongs(cardPartition1, 0);
-            
+
       //make a copy of gomoryHuParent
       //std::vector<count> copyGomoryHuParent(gomoryHuParent);
-            
+
       std::vector<count> copyGomoryHuParent(cardPartition1, 0);
       for(count i1 = 0; i1 < cardPartition1; i1++) {
 	copyGomoryHuParent[i1] = gomoryHuParent[i1];
       }
-            
+
       //... first, turn copyGomoryHuParent into transitive closure of gomoryHuParent
       copyGomoryHuParent[i1] = i1;
       for(count j1 = 0; j1 < cardPartition1; j1++) {
@@ -1765,18 +1764,18 @@ double Correspondences::evaluateAllCorrespondences(std::vector<index>& gomoryHuP
 	  k1 = copyGomoryHuParent[k1];
 	}
       }
-            
+
       //... then derive bestBelongs from transitive closure of copyGomoryHuParent
       for(count j1 = 0; j1 < cardPartition1; j1++) {
 	if(copyGomoryHuParent[j1] == i1) {
 	  bestBelongs[j1] = 1;
 	}
       }
-            
+
       //find bestBelongsPrime
       std::vector<int> bestBelongsPrime(cardPartition2, 0);
       getBestBelongsPrime(bestBelongs, bestBelongsPrime);
-            
+
       //evaluate correspondence (bestBelongs, bestBelongsPrime)
       count clusterCardinality = 0;
       count clusterCardinalityPrime = 0;
@@ -1794,7 +1793,7 @@ double Correspondences::evaluateAllCorrespondences(std::vector<index>& gomoryHuP
       (dissim[clusterCardinality][clusterCardinalityPrime])+= cutWithGomoryHuParent[i1];
     }
   }
-    
+
   count diagDissim = 0;
   count offDiagDissim = 0;
   for(count i1 = 0; i1 < cardPartition1; i1++) {
@@ -1818,7 +1817,7 @@ double Correspondences::evaluateAllCorrespondences(std::vector<index>& gomoryHuP
 
   //double imbalance = ((double) offDiagDissim) / ((double) diagDissim);
   double imbalance = ((double) offDiagDissim) / ((double) totalDissimilarity);
-    
+
   TRACE("Normalized total dissimilarity and imbalance are ",
 	((double) totalDissimilarity) / ((double)numberOfElements), " and ", imbalance);
   return(imbalance);
@@ -1829,24 +1828,24 @@ double Correspondences::evaluateAllCorrespondences(std::vector<index>& gomoryHuP
 /**********************************************************************/
 bool Correspondences::readSegmentationNormalizeClusters(std::string filename, Partition& partition,
                                                         std::map<index, index>& clusterID2segmentID) {
-    
+
     // open file for reading
     std::ifstream infile(filename.c_str());
     if (!infile) {
         std::cerr << "Error opening file" << filename << std::endl;
         return(false);
     }
-    
+
     //get numberOfLines in file = number of elements partitioned
     count nrElements = 0;
     std::string line;
     while(std::getline(infile, line)) {nrElements++;}
-    
-    
+
+
     //return to first line
     infile.clear();
     infile.seekg(0);
-    
+
     //read file, put content in vector named segmentation
     std::vector<index> segmentation(nrElements);
     index elementID = 0;
@@ -1858,7 +1857,7 @@ bool Correspondences::readSegmentationNormalizeClusters(std::string filename, Pa
     //    for(elementID = 0; elementID < nrElements; elementID++) {
     //        std::cout << "elementID und segmentation[elementID] sind " << elementID << " und " << segmentation[elementID] << std::endl;
     //    }
-    
+
     //map segmentIDs, i.e., the entries of the vector named segmentation,
     //onto (consectutive) clusterIDs and vice versa (cluster normalization)
     count nrClusters = 0;
@@ -1874,7 +1873,7 @@ bool Correspondences::readSegmentationNormalizeClusters(std::string filename, Pa
         }
     }
     infile.close();
-    
+
     //specfy partition
     partition = Partition(nrElements);
     partition.setUpperBound(nrClusters);
@@ -1887,7 +1886,7 @@ bool Correspondences::readSegmentationNormalizeClusters(std::string filename, Pa
     //     partition.addToSubset(nrClustersDec - segmentID2clusterID[segmentation[elementID]],elementID);
     // }
 
-    
+
     return(true);
 }
 
@@ -1912,11 +1911,134 @@ bool Correspondences::readSegmentationNormalizeClusters(std::string filename, Pa
     void (Correspondences::*decrementT)(index newCluster) = &Correspondences::decrementT4;
     count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins) = &Correspondences::getQualityTrivialSolutions4;
     index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                   std::vector<index>& insertedAt, count& position,
+                   std::vector<int>& bestBelongs,
+                   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                   std::vector<bool>& doneWith) = &Correspondences::greedyDescent4;
+
+    count (Correspondences::*minCut)(index s, index t, std::vector<int>& bestBelongs,
+                count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
+                count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins),
+                index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
+                               std::vector<index>& insertedAt, count& position,
+                               std::vector<int>& bestBelongs,
+                               count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
+                               std::vector<bool>& doneWith)) = &Correspondences::minCut4;
+    if(level == 2) {
+      incrementS = &Correspondences::incrementS2;
+      incrementT = &Correspondences::incrementT2;
+      decrementS = &Correspondences::decrementS2;
+      decrementT = &Correspondences::decrementT2;
+      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions2;
+      greedyDescent = &Correspondences::greedyDescent4;
+      minCut = &Correspondences::minCut4;
+    }
+
+    if(level == 3) {
+      incrementS = &Correspondences::incrementS3;
+      incrementT = &Correspondences::incrementT3;
+      decrementS = &Correspondences::decrementS3;
+      decrementT = &Correspondences::decrementT3;
+      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions3;
+      greedyDescent = &Correspondences::greedyDescent3;
+      minCut = &Correspondences::minCut4;
+    }
+
+    if(level == 4) {
+      incrementS = &Correspondences::incrementS4;
+      incrementT = &Correspondences::incrementT4;
+      decrementS = &Correspondences::decrementS4;
+      decrementT = &Correspondences::decrementT4;
+      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions4;
+      greedyDescent = &Correspondences::greedyDescent4;
+      minCut = &Correspondences::minCut4;
+    }
+
+    index bestS, bestT;
+    std::vector<int> bestBestBelongs;
+    Partition partition1, partition2;//element normalizations of partitionA and partitionB
+    std::vector<index> old2newElement(partitionA.numberOfElements());//needed to undo normalization of elelments
+    normalizeElements(partitionA, partitionB, partition1, partition2, old2newElement);
+    numberOfElements = partition1.numberOfElements();
+
+    //std::cout << "Number of elements: " <<  numberOfElements << std::endl;
+    //std::cout << "Number of clusters in partition 1: " << partition1.upperBound() << std::endl;
+    //std::cout << "Number of clusters in partition 2: " << partition2.upperBound() << std::endl;
+    //TRACE("Number of elements is ", numberOfElements);
+    //TRACE("Number of clusters in partition 1: ", partition1.upperBound());
+    //TRACE("Number of clusters in partition 2: ", partition2.upperBound());
+
+
+    getDistributions(partition1, partition2);
+    //TRACE("partition1 is ", partition1.getVector());
+    //TRACE("partition2 is ", partition2.getVector());
+
+    //make bipartite graph
+    makeBipartiteGraph(partition1, partition2);
+
+    //Gomory-Hu tree
+    std::vector<index> gomoryHuParent(cardPartition1, cardPartition1);
+    std::vector<count> cutWithGomoryHuParent(cardPartition1, numberOfElements);
+    //std::vector<count> sortedGomoryHuParent(cardPartition1, cardPartition1);
+    //std::vector<count> sortedCutWithGomoryHuParent(cardPartition1, numberOfElements);
+    //std::cout << "Gusfield's algorithm ..." << std::endl;
+    //TRACE("Gusfield's algorithm ...");
+
+    time_t seconds0 = time(NULL);
+    count totalCut = gusfield(gomoryHuParent, cutWithGomoryHuParent,
+                //sortedGomoryHuParent, sortedCutWithGomoryHuParent,
+                bestS, bestT, bestBestBelongs,
+                incrementS, incrementT, decrementS, decrementT, getQualityTrivialSolutions,
+                greedyDescent, minCut);
+    time_t seconds1 = time(NULL);
+    std::cout << "Gusfield took " << seconds1 - seconds0 << " seconds." << std::endl;
+
+
+    //std::cout << "Minimum cut has weight " << minimumCut << std::endl;
+    //(std::cout << "Maximum number of greedyDescents is " <<  maxNumberForwardGreedyDescents << std::endl;
+    //TRACE("Minimum cut has weight ", minimumCut);
+    //TRACE("Maximum number of greedyDescents ", maxNumberForwardGreedyDescents);
+
+    evaluateAllCorrespondences(gomoryHuParent, cutWithGomoryHuParent);
+
+    //TRACE("bestS is ", bestS);
+    //TRACE("bestT is ", bestT);
+    // std::vector<int> bestBestBelongsPrime(cardPartition2, 0);
+    // getBestBelongsPrime(bestBestBelongs, bestBestBelongsPrime);
+    // TRACE("bestBestBelongs is ", bestBestBelongs);
+    // TRACE("bestBestBelongsPrime is ", bestBestBelongsPrime);
+
+    return(((double)totalCut)/((double)numberOfElements));
+  }
+
+
+  /**********************************************************************/
+  /*                               detect                               */
+  /**********************************************************************/
+  void Correspondences::detect(unsigned int level, const Partition& partitionA, const Partition& partitionB) {
+    //level == 1: cuts through bipartite graph, not yet implemented
+    //level == 2: nontrivial (one-sided) correspondences
+    //level == 3: non-degenerate correspondences
+    //level == 4: mutual correspondences
+
+    if(level == 1) {
+        ERROR("Level == 1 not yet implemented. Sorry!");
+        return;
+    }
+
+    // Depending on level, choose the right functions for incrementing, decrementing S or T
+    count (Correspondences::*incrementS)(index newCluster) = &Correspondences::incrementS4;
+    count (Correspondences::*incrementT)(index newCluster) = &Correspondences::incrementT4;
+    void (Correspondences::*decrementS)(index newCluster) = &Correspondences::decrementS4;
+    void (Correspondences::*decrementT)(index newCluster) = &Correspondences::decrementT4;
+    count (Correspondences::*getQualityTrivialSolutions)(index s, index t, bool& tWins) = &Correspondences::getQualityTrivialSolutions4;
+    index (Correspondences::*greedyDescent)(index s, index t, count& bestFrac, count& currentFrac,
 				   std::vector<index>& insertedAt, count& position,
 				   std::vector<int>& bestBelongs,
 				   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
 				   std::vector<bool>& doneWith) = &Correspondences::greedyDescent4;
-        
+
     count (Correspondences::*minCut)(index s, index t, std::vector<int>& bestBelongs,
 			    count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
 			    void (Correspondences::*decrementS)(index newCluster), void (Correspondences::*decrementT)(index newCluster),
@@ -1927,91 +2049,65 @@ bool Correspondences::readSegmentationNormalizeClusters(std::string filename, Pa
 							   count (Correspondences::*incrementS)(index newCluster), count (Correspondences::*incrementT)(index newCluster),
 							   std::vector<bool>& doneWith)) = &Correspondences::minCut4;
     if(level == 2) {
-      incrementS = &Correspondences::incrementS2;
-      incrementT = &Correspondences::incrementT2;
-      decrementS = &Correspondences::decrementS2;
-      decrementT = &Correspondences::decrementT2;
-      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions2;
-      greedyDescent = &Correspondences::greedyDescent4;
-      minCut = &Correspondences::minCut4;
+        incrementS = &Correspondences::incrementS2;
+        incrementT = &Correspondences::incrementT2;
+        decrementS = &Correspondences::decrementS2;
+        decrementT = &Correspondences::decrementT2;
+        getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions2;
+        greedyDescent = &Correspondences::greedyDescent4;
+        minCut = &Correspondences::minCut4;
     }
-        
+
     if(level == 3) {
-      incrementS = &Correspondences::incrementS3;
-      incrementT = &Correspondences::incrementT3;
-      decrementS = &Correspondences::decrementS3;
-      decrementT = &Correspondences::decrementT3;
-      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions3;
-      greedyDescent = &Correspondences::greedyDescent3;
-      minCut = &Correspondences::minCut4;
+        incrementS = &Correspondences::incrementS3;
+        incrementT = &Correspondences::incrementT3;
+        decrementS = &Correspondences::decrementS3;
+        decrementT = &Correspondences::decrementT3;
+        getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions3;
+        greedyDescent = &Correspondences::greedyDescent3;
+        minCut = &Correspondences::minCut4;
     }
-        
+
     if(level == 4) {
-      incrementS = &Correspondences::incrementS4;
-      incrementT = &Correspondences::incrementT4;
-      decrementS = &Correspondences::decrementS4;
-      decrementT = &Correspondences::decrementT4;
-      getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions4;
-      greedyDescent = &Correspondences::greedyDescent4;
-      minCut = &Correspondences::minCut4;
+        incrementS = &Correspondences::incrementS4;
+        incrementT = &Correspondences::incrementT4;
+        decrementS = &Correspondences::decrementS4;
+        decrementT = &Correspondences::decrementT4;
+        getQualityTrivialSolutions = &Correspondences::getQualityTrivialSolutions4;
+        greedyDescent = &Correspondences::greedyDescent4;
+        minCut = &Correspondences::minCut4;
     }
-        
+
+    numberOfElements = partitionA.numberOfElements();
+
     index bestS, bestT;
     std::vector<int> bestBestBelongs;
-    Partition partition1, partition2;//element normalizations of partitionA and partitionB
-    std::vector<index> old2newElement(partitionA.numberOfElements());//needed to undo normalization of elelments
-    normalizeElements(partitionA, partitionB, partition1, partition2, old2newElement);
-    numberOfElements = partition1.numberOfElements();
-        
-    //std::cout << "Number of elements: " <<  numberOfElements << std::endl;
-    //std::cout << "Number of clusters in partition 1: " << partition1.upperBound() << std::endl;
-    //std::cout << "Number of clusters in partition 2: " << partition2.upperBound() << std::endl;
-    //TRACE("Number of elements is ", numberOfElements);
-    //TRACE("Number of clusters in partition 1: ", partition1.upperBound());
-    //TRACE("Number of clusters in partition 2: ", partition2.upperBound());
-        
-        
-    getDistributions(partition1, partition2);
-    //TRACE("partition1 is ", partition1.getVector());
-    //TRACE("partition2 is ", partition2.getVector());
-        
-    //make bipartite graph
-    makeBipartiteGraph(partition1, partition2);
-        
-    //Gomory-Hu tree
-    std::vector<index> gomoryHuParent(cardPartition1, cardPartition1);
-    std::vector<count> cutWithGomoryHuParent(cardPartition1, numberOfElements);
-    //std::vector<count> sortedGomoryHuParent(cardPartition1, cardPartition1);
-    //std::vector<count> sortedCutWithGomoryHuParent(cardPartition1, numberOfElements);
-    //std::cout << "Gusfield's algorithm ..." << std::endl;
-    //TRACE("Gusfield's algorithm ...");
- 
-    time_t seconds0 = time(NULL);       
-    count totalCut = gusfield(gomoryHuParent, cutWithGomoryHuParent,
-				//sortedGomoryHuParent, sortedCutWithGomoryHuParent,
-				bestS, bestT, bestBestBelongs,
-				incrementS, incrementT, decrementS, decrementT, getQualityTrivialSolutions,
-				greedyDescent, minCut);
-    time_t seconds1 = time(NULL);
-    std::cout << "Gusfield took " << seconds1 - seconds0 << " seconds." << std::endl;
 
-        
-    //std::cout << "Minimum cut has weight " << minimumCut << std::endl;
-    //(std::cout << "Maximum number of greedyDescents is " <<  maxNumberForwardGreedyDescents << std::endl;
-    //TRACE("Minimum cut has weight ", minimumCut);
-    //TRACE("Maximum number of greedyDescents ", maxNumberForwardGreedyDescents);
-        
-    evaluateAllCorrespondences(gomoryHuParent, cutWithGomoryHuParent);
-        
-    //TRACE("bestS is ", bestS);
-    //TRACE("bestT is ", bestT);
-    // std::vector<int> bestBestBelongsPrime(cardPartition2, 0);
-    // getBestBelongsPrime(bestBestBelongs, bestBestBelongsPrime);
-    // TRACE("bestBestBelongs is ", bestBestBelongs);
-    // TRACE("bestBestBelongsPrime is ", bestBestBelongsPrime);
-        
-    return(((double)totalCut)/((double)numberOfElements));
+    // Normalised permutations of partitionA and partitionB
+    Partition partition1, partition2;
+    // Mapping of old elements to new elements after normalization
+    std::vector<index> old2newElement(numberOfElements);
+
+    normalizeElements(partitionA, partitionB, partition1, partition2, old2newElement);
+
+    // Calculate distributions matrix
+    getDistributions(partition1, partition2);
+
+    // Make bipartite graph
+    makeBipartiteGraph(partition1, partition2);
+
+    // Initialise Gomory-Hu tree
+    gomoryHuParent = std::vector<index>(cardPartition1, cardPartition1);
+    cutWithGomoryHuParent = std::vector<count>(cardPartition1, numberOfElements);
+
+    // Build Gomory-Hu tree
+    // TODO totalCut unused variable
+    count totalCut = gusfield(
+        gomoryHuParent, cutWithGomoryHuParent,
+		bestS, bestT, bestBestBelongs,
+		incrementS, incrementT, decrementS, decrementT, getQualityTrivialSolutions,
+		greedyDescent, minCut
+    );
   }
 
 } /* namespace NetworKit */
-
