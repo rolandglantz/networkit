@@ -2504,7 +2504,7 @@ public:
 		this->previousPartition = partition;
 	}
 
-	const SymmetricMatrix<count>& getM() const {
+	const DiagonalSymmetricMatrix<count>& getM() const {
 		return this->subclusterCounts;
 	}
 
@@ -2529,7 +2529,7 @@ public:
 
 protected:
 	Partition base;
-	SymmetricMatrix<count> subclusterCounts;
+	DiagonalSymmetricMatrix<count> subclusterCounts;
 
 	Partition previousPartition;
 	bool first = true;
@@ -2581,14 +2581,11 @@ protected:
 
 		for (index i : pBase) {
 			for (index j : pPrimeBase) {
-				if (i == j)
-					continue;
-				else
-					this->subclusterCounts.set(
-						i + 1,
-						j + 1,
-						this->subclusterCounts.get(i + 1, j + 1) + 1
-					);
+				this->subclusterCounts.set(
+					i + 1,
+					j + 1,
+					this->subclusterCounts.get(i + 1, j + 1) + 1
+				);
 			}
 		}
 	}

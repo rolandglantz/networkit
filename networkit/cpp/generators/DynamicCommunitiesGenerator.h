@@ -34,7 +34,7 @@
 namespace NetworKit {
 
 template<typename T>
-class SymmetricMatrix {
+class Matrix {
 public:
 	typedef typename std::vector<T>::iterator iterator;
 	typedef typename std::vector<T>::const_iterator const_iterator;
@@ -42,40 +42,76 @@ public:
 		index i, j;
 	};
 
+	Matrix() = default;
+	virtual ~Matrix() = default;
+
+	T& operator[](const Index ind) {
+		return this->at(ind);
+	}
+
+	virtual T& at(const Index ind) = 0;
+
+	virtual T get(index i, index j) const = 0;
+	virtual void set(index i, index j, T value) = 0;
+
+	virtual count getN() const = 0;
+
+	virtual iterator begin() = 0;
+	virtual iterator end() = 0;
+
+	virtual const_iterator cbegin() const = 0;
+	virtual const_iterator cend() const = 0;
+
+	virtual Index indexFromIterator(const_iterator it) const = 0;
+	virtual Index indexFromPosition(index bufIndex) const = 0;
+};
+
+template<typename T>
+class SymmetricMatrix : public Matrix<T> {
+public:
+	typedef typename Matrix<T>::iterator iterator;
+	typedef typename Matrix<T>::const_iterator const_iterator;
+	typedef typename Matrix<T>::Index Index;
+
 	SymmetricMatrix() : n(0), buf(0) {};
 	SymmetricMatrix(count n) : n(n), buf((n - 1)*n / 2) {}
 	SymmetricMatrix(count n, const T& value) : n(n), buf((n - 1)*n / 2, value) {};
 	~SymmetricMatrix() = default;
 
-	T get(index i, index j) const {
-		index ind = calcBufIndex(i, j);
-		return this->buf[ind];
+	virtual T& at(const Index ind) {
+		index bufIndex = this->calcBufIndex(ind.i, ind.j);
+		return this->buf[bufIndex];
 	}
 
-	void set(index i, index j, T value) {
-		index ind = calcBufIndex(i, j);
-		this->buf[ind] = value;
+	virtual T get(index i, index j) const {
+		index bufIndex = this->calcBufIndex(i, j);
+		return this->buf[bufIndex];
 	}
 
-	count getN() const {
+	virtual void set(index i, index j, T value) {
+		index bufIndex = this->calcBufIndex(i, j);
+		this->buf[bufIndex] = value;
+	}
+
+	virtual count getN() const {
 		return this->n;
 	}
 
-	iterator begin() {
+	virtual iterator begin() {
 		return this->buf.begin();
 	}
-	iterator end() {
+	virtual iterator end() {
 		return this->buf.end();
 	}
 
-	const_iterator cbegin() const {
+	virtual const_iterator cbegin() const {
 		return this->buf.cbegin();
 	}
-	const_iterator cend() const {
+	virtual const_iterator cend() const {
 		return this->buf.cend();
 	}
 
-	Index indexFromIterator(const_iterator it) const {
+	virtual Index indexFromIterator(const_iterator it) const {
 		if (this->cbegin() > it || this->cend() < it) {
 			throw(std::domain_error(
 				"SymmetricMatrix::indexFromIterator: Iterator seems to be invalid"
@@ -85,7 +121,7 @@ public:
 		return this->indexFromPosition(it - this->cbegin());
 	}
 
-	Index indexFromPosition(index bufIndex) const {
+	virtual Index indexFromPosition(index bufIndex) const {
 		SymmetricMatrix<T>::Index ind = {1,0};
 
 		//     1 2 3 4
@@ -112,7 +148,7 @@ protected:
 	count n;
 	std::vector<T> buf;
 
-	index calcBufIndex(index i, index j) const {
+	virtual index calcBufIndex(index i, index j) const {
 		if (i < 1 || j < 1)
 			throw(std::domain_error(
 				"SymmetricMatrix: Invalid index (<1)"
@@ -140,6 +176,40 @@ protected:
 
 		return (i - 1) * this->n + (j - 1) - (i * (i + 1) / 2);
 	};
+};
+
+template<typename T>
+class DiagonalSymmetricMatrix : public SymmetricMatrix<T> {
+public:
+	typedef typename SymmetricMatrix<T>::iterator iterator;
+	typedef typename SymmetricMatrix<T>::const_iterator const_iterator;
+	typedef typename SymmetricMatrix<T>::Index Index;
+
+	DiagonalSymmetricMatrix() {};
+	DiagonalSymmetricMatrix(count n) : SymmetricMatrix<T>(n + 1) {}
+	DiagonalSymmetricMatrix(count n, const T& value) : SymmetricMatrix<T>(n + 1, value) {};
+	~DiagonalSymmetricMatrix() = default;
+
+	virtual count getN() const {
+		return this->SymmetricMatrix<T>::getN() - 1;
+	}
+
+	virtual Index indexFromPosition(index bufIndex) const {
+		Index ind = this->SymmetricMatrix<T>::indexFromPosition(bufIndex);
+		ind.j -= 1;
+		return ind;
+	}
+
+protected:
+	virtual index calcBufIndex(index i, index j) const {
+		if (j < i) {
+			index tmp = j;
+			j = i;
+			i = tmp;
+		}
+
+		return this->SymmetricMatrix<T>::calcBufIndex(i, j + 1);
+	}
 };
 
 class SubclusterEdges {
